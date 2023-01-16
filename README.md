@@ -26,7 +26,7 @@ struct Armor_msg
     {
         double outpost_blood;  // 前哨站血量
         double sentry_blood;   // 哨兵血量
-        int bullet_num；       // 剩余子弹数目
+        int bullet_num;       // 剩余子弹数目
         double time_left;      // 剩余比赛时间
         double game_timestamp; // 比赛状况事件戳
         bool manual_top;       // 是否手动开启小陀螺
@@ -60,8 +60,7 @@ double QUAT_k;
 
 ### 2.行为树内部entry
 
-```xml
-<
+```c++
 armor_number="{armor_number}"               // 识别到的装甲板的数量
 armor_distance="{armor_distance}"           // 最近的装甲板的距离
 armor_timestamp="{armor_timestamp}"         // 装甲板时间戳
@@ -81,7 +80,6 @@ bullet_num="{bullet_num}"                   // 剩余子弹数目
 time_left="{time_left}"                     // 剩余比赛时间
 game_timestamp="{game_timestamp}"           // 比赛状况事件戳
 manual_top="{manual_top}"                   // 是否手动开启小陀螺
-/>
 ```
 
 
