@@ -1,0 +1,17 @@
+<root BTCPP_format="4">
+    <BehaviorTree ID="MainTree">
+        <Sequence>
+            <DataReadNode name="dataread" armor_number="{armor_number}" armor_distance="{armor_distance}" armor_timestamp="{armor_timestamp}" 
+            QUAT_1="{QUAT_1}" QUAT_i="{QUAT_i}" QUAT_j="{QUAT_j}" QUAT_k="{QUAT_k}" 
+            navigation_timestamp="{navigation_timestamp}" navigation_status="{navigation_status}" 
+            outpost_blood="{outpost_blood}" sentry_blood="{sentry_blood}" 
+            bullet_num="{bullet_num}" time_left="{time_left}" game_timestamp="{game_timestamp}" manual_top="{manual_top}" />
+            <Top_Node name="top_node" outpost_blood="{outpost_blood}" manual_top="{manual_top}" top_status="{top_status}"/>
+            <Detect_Node name="detect_node" armor_number="{armor_number}" armor_distance="{armor_distance}" armor_timestamp="{armor_timestamp}" 
+            sentry_blood="{sentry_blood}" bullet_num="{bullet_num}" time_left="{time_left}" outpost_blood="{outpost_blood}"
+            bullet_rate="{bullet_rate}" top_status="{top_status}" navigation_status="{navigation_status}"/>
+            <Navigation_Node name="navigation_node" QUAT_1="{QUAT_1}" QUAT_i="{QUAT_i}" QUAT_j="{QUAT_j}" QUAT_k="{QUAT_k}"
+            bullet_rate="{bullet_rate}" top_status="{top_status}"/>
+        </Sequence>
+    </BehaviorTree>
+</root>
