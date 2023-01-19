@@ -1,0 +1,116 @@
+<?xml version="1.0"?>
+<root BTCPP_format="4">
+    <!-- ////////// -->
+    <BehaviorTree ID="MainTree">
+        <Sequence>
+            <Action ID="DataReadNode" QUAT_1="{QUAT_1}" QUAT_i="{QUAT_i}" QUAT_j="{QUAT_j}" QUAT_k="{QUAT_k}" armor_distance="{armor_distance}" armor_number="{armor_number}" armor_timestamp="{armor_timestamp}" bullet_num="{bullet_num}" game_timestamp="{game_timestamp}" manual_top="{manual_top}" name="dataread" navigation_back="{navigation_back}" navigation_status="{navigation_status}" navigation_timestamp="{navigation_timestamp}" outpost_blood="{outpost_blood}" sentry_blood="{sentry_blood}" time_left="{time_left}"/>
+            <Fallback>
+                <Repeat num_cycles="2">
+                    <Sequence name="Main_Sequence">
+                        <WhileDoElse name="Top_Choose">
+                            <Condition ID="Top_Condition" manual_top="{manual_top}" outpost_blood="{outpost_blood}"/>
+                            <Action ID="Top_on_Node" top_status="{top_status}"/>
+                            <Action ID="Top_off_Node" top_status="{top_status}"/>
+                        </WhileDoElse>
+                        <WhileDoElse name="Pose_Choose">
+                            <Condition ID="Pose_Condition" top_status="{top_status}"/>
+                            <Sequence name="Defend_Sequence">
+                                <Action ID="Navigation_on_Node" QUAT_1="{QUAT_1}" QUAT_i="{QUAT_i}" QUAT_j="{QUAT_j}" QUAT_k="{QUAT_k}" navigation_back="{navigation_back}"/>
+                                <Action ID="No_Limit_Shoot_Node"/>
+                            </Sequence>
+                            <Sequence name="Attack_Sequence">
+                                <WhileDoElse name="Navigation_Choose">
+                                    <Condition ID="Navigation_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" outpost_blood="{outpost_blood}" sentry_blood="{sentry_blood}" time_left="{time_left}"/>
+                                    <Sequence name="Navigation_off_Sequence">
+                                        <Action ID="Navigation_off_Node"/>
+                                        <Action ID="Limit_Shoot_Node" bullet_rate="{bullet_rate}"/>
+                                    </Sequence>
+                                    <Sequence name="Navigation_on_Sequence">
+                                        <Action ID="Navigation_on_Node" QUAT_1="{QUAT_1}" QUAT_i="{QUAT_i}" QUAT_j="{QUAT_j}" QUAT_k="{QUAT_k}" navigation_back="{navigation_back}"/>
+                                        <Action ID="No_Shoot_Node"/>
+                                    </Sequence>
+                                </WhileDoElse>
+                            </Sequence>
+                        </WhileDoElse>
+                    </Sequence>
+                </Repeat>
+                <ForceSuccess>
+                    <Sequence name="Default_Sequence">
+                        <Action ID="Top_on_Node" top_status="{top_status}"/>
+                        <Action ID="Navigation_back_Node"/>
+                        <Action ID="No_Limit_Shoot_Node"/>
+                    </Sequence>
+                </ForceSuccess>
+            </Fallback>
+        </Sequence>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <TreeNodesModel>
+        <Action ID="DataReadNode">
+            <input_port name="QUAT_1"/>
+            <input_port name="QUAT_i"/>
+            <input_port name="QUAT_j"/>
+            <input_port name="QUAT_k"/>
+            <input_port name="armor_distance"/>
+            <input_port name="armor_number"/>
+            <input_port name="armor_timestamp"/>
+            <input_port name="bullet_num"/>
+            <input_port name="game_timestamp"/>
+            <input_port name="manual_top"/>
+            <output_port name="navigation_back"/>
+            <input_port name="navigation_status"/>
+            <input_port name="navigation_timestamp"/>
+            <input_port name="outpost_blood"/>
+            <input_port name="sentry_blood"/>
+            <input_port name="time_left"/>
+        </Action>
+        <Control ID="Detect_Condition">
+            <input_port name="armor_distance"/>
+            <input_port name="armor_number"/>
+            <output_port name="bullet_num"/>
+            <input_port name="bullet_rate"/>
+            <input_port name="navigation_status"/>
+            <input_port name="outpost_blood"/>
+            <input_port name="sentry_blood"/>
+            <input_port name="time_left"/>
+            <input_port name="top_status"/>
+        </Control>
+        <Action ID="Limit_Shoot_Node">
+            <input_port name="bullet_rate"/>
+        </Action>
+        <Condition ID="Navigation_Condition">
+            <input_port name="armor_distance"/>
+            <input_port name="armor_number"/>
+            <input_port name="bullet_num"/>
+            <output_port name="bullet_rate"/>
+            <input_port name="outpost_blood"/>
+            <input_port name="sentry_blood"/>
+            <input_port name="time_left"/>
+        </Condition>
+        <Action ID="Navigation_back_Node"/>
+        <Action ID="Navigation_off_Node"/>
+        <Action ID="Navigation_on_Node">
+            <input_port name="QUAT_1"/>
+            <input_port name="QUAT_i"/>
+            <input_port name="QUAT_j"/>
+            <input_port name="QUAT_k"/>
+            <input_port name="navigation_back"/>
+        </Action>
+        <Action ID="No_Limit_Shoot_Node"/>
+        <Action ID="No_Shoot_Node"/>
+        <Condition ID="Pose_Condition">
+            <input_port name="top_status"/>
+        </Condition>
+        <Condition ID="Top_Condition">
+            <input_port name="manual_top"/>
+            <input_port name="outpost_blood"/>
+        </Condition>
+        <Action ID="Top_off_Node">
+            <output_port name="top_status"/>
+        </Action>
+        <Action ID="Top_on_Node">
+            <output_port name="top_status"/>
+        </Action>
+    </TreeNodesModel>
+    <!-- ////////// -->
+</root>

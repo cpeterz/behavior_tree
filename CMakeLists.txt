@@ -41,7 +41,7 @@ include_directories(include)
 
 add_executable(behaviortree src/BehaviorTree.cpp)
 
-add_definitions(-DBT_XML="${CMAKE_CURRENT_LIST_DIR}/BehaviourTree.xml")
+add_definitions(-DBT_XML="${CMAKE_CURRENT_LIST_DIR}/BehaviorTree.xml")
 
 target_link_libraries(behaviortree BT::behaviortree_cpp)
 

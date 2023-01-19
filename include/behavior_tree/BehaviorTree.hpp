@@ -5,8 +5,13 @@
 #include "base_interfaces/msg/top.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "behaviortree_cpp/bt_factory.h"
+#include "behaviortree_cpp/loggers/bt_cout_logger.h"  //调试用头文件
+// #include "behaviortree_cpp/loggers/bt_file_logger.h"
+// #include "behaviortree_cpp/loggers/bt_minitrace_logger.h"
+// #include "behaviortree_cpp/loggers/bt_zmq_publisher.h"
 
 using std::placeholders::_1;
+
 namespace wmj
 {
     // 装甲板信息
@@ -25,18 +30,19 @@ namespace wmj
         double QUAT_j = 0;
         double QUAT_k = 0;
         double navigation_timestamp = 0; // 导航事件戳
-        bool navigation_status = false;      // 当前导航状态，true表示正在移动
+        bool navigation_status = false;  // 当前导航状态，true表示正在移动
+        bool navigation_back = false;    // 是否返回出发点
     };
 
     // 比赛状况信息
     struct Game_msg
     {
-        double outpost_blood = 1000;  // 前哨站血量
-        double sentry_blood = 1000;   // 哨兵血量
-        int bullet_num = 700;         // 剩余子弹数目
+        double outpost_blood = 1000; // 前哨站血量
+        double sentry_blood = 1000;  // 哨兵血量
+        int bullet_num = 700;        // 剩余子弹数目
         double time_left = 300;      // 剩余比赛时间
-        double game_timestamp = 0; // 比赛状况事件戳
-        bool manual_top = true;       // 是否手动开启小陀螺
+        double game_timestamp = 0;   // 比赛状况事件戳
+        bool manual_top = true;      // 是否手动开启小陀螺
     };
 
     // 共用ROS节点，负责收发消息
@@ -45,11 +51,11 @@ namespace wmj
     public:
         Topic_Node(std::string name) : Node(name)
         {
-            RCLCPP_INFO(this->get_logger(), "Topic Node test start working");
+            RCLCPP_INFO(this->get_logger(), "Topic Node start working");
         }
     };
 
-    // 数据读取节点类
+    // 数据读取节点
     class DataReadNode : public BT::SyncActionNode
     {
     public:
@@ -83,51 +89,203 @@ namespace wmj
         void navigation_call_back(const base_interfaces::msg::Navigation::SharedPtr msg);
     };
 
-    // 自瞄类
-    class Detect_Node : public BT::SyncActionNode
+    // 发射基类
+    class Shoot_Node : public BT::SyncActionNode
     {
     public:
-        Detect_Node(const std::string &name, const BT::NodeConfig &config,
-                    rclcpp::Node::SharedPtr node);
+        Shoot_Node(const std::string &name, const BT::NodeConfig &config,
+                   rclcpp::Node::SharedPtr node);
 
-        BT::NodeStatus tick() override;
         static BT::PortsList providedPorts();
 
-    private:
+    protected:
         std::shared_ptr<rclcpp::Node> node_;
         rclcpp::Publisher<base_interfaces::msg::Shooter>::SharedPtr pub_shooter; // 子弹发射发布者
-
-        int bullet_rate; // 弹速                                                    // 发弹频率
+        base_interfaces::msg::Shooter msg;
     };
 
-    // 导航类
-    class Navigation_Node : public BT::SyncActionNode
+    // 无限制发射节点
+    class No_Limit_Shoot_Node : public Shoot_Node
     {
     public:
-        Navigation_Node(const std::string &name, const BT::NodeConfig &config,
-                        rclcpp::Node::SharedPtr node);
-
-        BT::NodeStatus tick() override;
-        static BT::PortsList providedPorts();
+        No_Limit_Shoot_Node(const std::string &name, const BT::NodeConfig &config,
+                            rclcpp::Node::SharedPtr node)
+            : Shoot_Node::Shoot_Node(name, config, node)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "No_Limit_Shoot_Node is working");
+        }
 
     private:
-        rclcpp::Publisher<base_interfaces::msg::Navigation>::SharedPtr pub_navigation; // 导航信息发布者
-        std::shared_ptr<rclcpp::Node> node_;
+        BT::NodeStatus tick() override;
     };
 
-    // 小陀螺类
+    // 停止发射节点
+    class No_Shoot_Node : public Shoot_Node
+    {
+    public:
+        No_Shoot_Node(const std::string &name, const BT::NodeConfig &config,
+                      rclcpp::Node::SharedPtr node)
+            : Shoot_Node::Shoot_Node(name, config, node)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "No_Shoot_Node is working");
+        }
+
+    private:
+        BT::NodeStatus tick() override;
+    };
+
+    // 限制发射节点
+    class Limit_Shoot_Node : public Shoot_Node
+    {
+    public:
+        Limit_Shoot_Node(const std::string &name, const BT::NodeConfig &config,
+                         rclcpp::Node::SharedPtr node)
+            : Shoot_Node::Shoot_Node(name, config, node)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Limit_Shoot_Node is working");
+        }
+
+    private:
+        BT::NodeStatus tick() override;
+    };
+
+    // 小陀螺基类
     class Top_Node : public BT::SyncActionNode
     {
     public:
         Top_Node(const std::string &name, const BT::NodeConfig &config,
                  rclcpp::Node::SharedPtr node);
-
-        BT::NodeStatus tick() override;
         static BT::PortsList providedPorts();
 
-    private:
+    protected:
         rclcpp::Publisher<base_interfaces::msg::Top>::SharedPtr pub_top;
         std::shared_ptr<rclcpp::Node> node_;
         bool top_status;
+        base_interfaces::msg::Top msg;
+    };
+
+    // 关闭小陀螺节点
+    class Top_off_Node : public Top_Node
+    {
+    public:
+        Top_off_Node(const std::string &name, const BT::NodeConfig &config,
+                     rclcpp::Node::SharedPtr node)
+            : Top_Node::Top_Node(name, config, node)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Top_off_Node is working");
+        }
+
+    private:
+        BT::NodeStatus tick() override;
+    };
+
+    // 开启小陀螺节点
+    class Top_on_Node : public Top_Node
+    {
+    public:
+        Top_on_Node(const std::string &name, const BT::NodeConfig &config,
+                    rclcpp::Node::SharedPtr node)
+            : Top_Node::Top_Node(name, config, node)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Top_on_Node is woring");
+        }
+
+    private:
+        BT::NodeStatus tick() override;
+    };
+
+    // 导航基类
+    class Navigation_Node : public BT::SyncActionNode
+    {
+    public:
+        Navigation_Node(const std::string &name, const BT::NodeConfig &config,
+                        rclcpp::Node::SharedPtr node);
+        static BT::PortsList providedPorts();
+
+    protected:
+        rclcpp::Publisher<base_interfaces::msg::Navigation>::SharedPtr pub_navigation; // 导航信息发布者
+        std::shared_ptr<rclcpp::Node> node_;
+        base_interfaces::msg::Navigation msg;
+    };
+
+    // 导航开启节点
+    class Navigation_on_Node : public Navigation_Node
+    {
+    public:
+        Navigation_on_Node(const std::string &name, const BT::NodeConfig &config,
+                           rclcpp::Node::SharedPtr node)
+            : Navigation_Node::Navigation_Node(name, config, node)
+        {
+             RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Navigation_on_Node is working");
+        }
+
+    private:
+        BT::NodeStatus tick() override;
+    };
+
+    // 导航关闭节点
+    class Navigation_off_Node : public Navigation_Node
+    {
+    public:
+        Navigation_off_Node(const std::string &name, const BT::NodeConfig &config,
+                            rclcpp::Node::SharedPtr node)
+            : Navigation_Node::Navigation_Node(name, config, node)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Navigation_off_Node is working");
+        }
+
+    private:
+        BT::NodeStatus tick() override;
+    };
+
+    // 导航返回节点
+    class Navigation_back_Node : public Navigation_Node
+    {
+    public:
+        Navigation_back_Node(const std::string &name, const BT::NodeConfig &config,
+                             rclcpp::Node::SharedPtr node)
+            : Navigation_Node::Navigation_Node(name, config, node)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Navigation_back_Node is working");
+        }
+
+    private:
+        BT::NodeStatus tick() override;
+    };
+
+    // 导航条件节点
+    class Navigation_Condition : public BT::ConditionNode
+    {
+    public:
+        Navigation_Condition(const std::string &name, const BT::NodeConfig &config);
+        static BT::PortsList providedPorts();
+
+    private:
+        int Get_Bullet_Rate(); // 获取当前子弹频率
+        BT::NodeStatus tick() override;
+    };
+
+    // 小陀螺条件节点
+    class Top_Condition : public BT::ConditionNode
+    {
+    public:
+        Top_Condition(const std::string &name, const BT::NodeConfig &config);
+        static BT::PortsList providedPorts();
+
+    private:
+        bool Get_Top_Status(); // 获取小陀螺状态,true则开启小陀螺
+        BT::NodeStatus tick() override;
+    };
+
+    // 姿态条件节点
+    class Pose_Condition : public BT::ConditionNode
+    {
+    public:
+        Pose_Condition(const std::string &name, const BT::NodeConfig &config);
+        static BT::PortsList providedPorts();
+
+    private:
+        bool Get_Current_Pose(); // 获取当前状态,false为进攻姿态，true为防御姿态
+        BT::NodeStatus tick() override;
     };
 }

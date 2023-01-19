@@ -1,10 +1,17 @@
-# 行为树 v1.0
+# 行为树 v1.1
 
-**目前整棵树为Sequence结构，执行 `DataReadNode` , `Top_Node` , `Detect_Node` , `Navigation_Node`后处理回调.** 
+~~**目前整棵树为Sequence结构，执行 `DataReadNode` , `Top_Node` , `Detect_Node` , `Navigation_Node`后处理回调.**~~
 
 
 
-### 1.ROS订阅发布：
+### 1.行为树架构
+
+![](行为树架构.png)
+
+![](行为树结构.png)
+
+
+### 2.ROS订阅发布：
 
 ```c++
 //subscription:
@@ -41,6 +48,8 @@ struct Navigation_msg
         double QUAT_k;
         double navigation_timestamp; // 导航事件戳
         bool navigation_status;   // 当前导航状态，true表示正在移动
+        bool navigation_back;  //是否需要返回巡逻区域
+        
     };
 
 //BT_shooter   发向通讯节点,使用接口: Shooter.msg
@@ -58,7 +67,8 @@ double QUAT_k;
 
 
 
-### 2.行为树内部entry
+### 3.行为树内部entry
+![](内部键值对.png)
 
 ```c++
 armor_number="{armor_number}"               // 识别到的装甲板的数量
@@ -84,13 +94,10 @@ manual_top="{manual_top}"                   // 是否手动开启小陀螺
 
 
 
-### 3.行为树逻辑
+### 4.行为树逻辑
 
 ![](流程图.png)
 
 
 
-### 4.架构
-
-![](行为树架构.png)
 
