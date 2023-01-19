@@ -2,7 +2,8 @@
 
 ~~**目前整棵树为Sequence结构，执行 `DataReadNode` , `Top_Node` , `Detect_Node` , `Navigation_Node`后处理回调.**~~
 
-
+**目前整颗树以拆分出一个个组成节点，包含八个动作节点和三个条件节点，可任意组合形成树**
+后期调试主要注意变量初始化问题
 
 ### 1.行为树架构
 
@@ -63,6 +64,8 @@ double QUAT_1;   // 四元数实数
 double QUAT_i;   // 四元数虚数部分
 double QUAT_j;
 double QUAT_k;
+bool navigation_back;  //是否返回巡逻区
+bool navigation_continue;  //导航是否继续
 ```
 
 
