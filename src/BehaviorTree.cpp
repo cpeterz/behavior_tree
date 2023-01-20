@@ -2,11 +2,57 @@
 
 namespace wmj
 {
+    void DataReadNode::readParam(std::string path, Read_Param mode)
+    {
+        cv::FileStorage fs(path, cv::FileStorage::READ);
+        switch (mode)
+        {
+        case ALL:
+            RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get init msg");
+            fs["init_armor_number"] >> this->armor_msg.armor_number;
+            fs["init_armor_distance"] >> this->armor_msg.armor_distance;
+            fs["init_armor_timestamp"] >> this->armor_msg.armor_timestamp;
+            fs["init_QUAT_1"] >> this->navigation_msg.QUAT_1;
+            fs["init_QUAT_i"] >> this->navigation_msg.QUAT_i;
+            fs["init_QUAT_j"] >> this->navigation_msg.QUAT_j;
+            fs["init_QUAT_k"] >> this->navigation_msg.QUAT_k;
+            fs["init_navigation_timestamp"] >> this->navigation_msg.navigation_timestamp;
+            fs["init_navigation_status "] >> this->navigation_msg.navigation_status;
+            fs["init_navigation_back"] >> this->navigation_msg.navigation_back;
+            fs["init_outpost_blood"] >> this->game_msg.outpost_blood;
+            fs["init_sentry_blood"] >> this->game_msg.sentry_blood;
+            fs["init_bullet_num"] >> this->game_msg.bullet_num;
+            fs["init_time_left"] >> this->game_msg.time_left;
+            fs["init_game_timestamp"] >> this->game_msg.game_timestamp;
+            fs["init_manual_top"] >> this->game_msg.manual_top;
+            break;
+        case ARMOR:
+            RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-armor msg");
+            fs["armor_number"] >> this->armor_msg.armor_number;
+            fs["armor_distance"] >> this->armor_msg.armor_distance;
+            fs["outpost_blood"] >> this->game_msg.outpost_blood;
+            fs["sentry_blood"] >> this->game_msg.sentry_blood;
+            fs["bullet_num"] >> this->game_msg.bullet_num;
+            fs["time_left"] >> this->game_msg.time_left;
+            break;
+        case NAVIGATION: // 导航消息暂时无用
+            RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-navigation msg");
+            // fs["navigation_status"] >> this->navigation_msg.navigation_status;
+            break;
+        case GAME:
+            RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-game msg");
+            fs["manual_top"] >> this->game_msg.manual_top;
+            fs["init_navigation_back"] >> this->navigation_msg.navigation_back;
+            break;
+        }
+    }
+
     DataReadNode::DataReadNode(const std::string &name, const BT::NodeConfig &config,
                                rclcpp::Node::SharedPtr node)
         : BT::SyncActionNode(name, config), node_(node)
     {
         RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "DataReadNode begin working");
+        readParam(BT_YAML, ALL);
         sub_armors = node->create_subscription<base_interfaces::msg::Armors>(
             "Armors", 10, std::bind(&DataReadNode::armor_call_back, this, _1));
         sub_game = node->create_subscription<base_interfaces::msg::Game>(
@@ -77,39 +123,15 @@ namespace wmj
         return ports_list;
     }
 
-    BT::NodeStatus DataReadNode::tick()
+      BT::NodeStatus DataReadNode::tick()
     {
         // 连续三次消息未更新，则使用默认数据
-        if (last_armor_timestamp == armor_msg.armor_timestamp)
-        {
-            RCLCPP_INFO(rclcpp::get_logger("REEOR INFO"), "Armor msg missing %d time", ++armor_msg_count);
-            if (armor_msg_count > 2)
-            {
-                armor_msg.armor_distance = 10;
-                armor_msg.armor_number = 0;
-            }
-        }
-        else
-        {
-            armor_msg_count = 0;
-        }
-
         if (last_game_timestamp == game_msg.game_timestamp)
         {
             RCLCPP_INFO(rclcpp::get_logger("REEOR INFO"), "Game msg missing %d time", ++game_msg_count);
             if (game_msg_count > 2)
             {
-                game_msg.bullet_num = 700;
-                game_msg.manual_top = true;
-                game_msg.outpost_blood = 0;
-                game_msg.sentry_blood = 100;
-                game_msg.time_left = 300;
-
-                navigation_msg.QUAT_1 = 0; // 默认回到巡航位置（目前未用）
-                navigation_msg.QUAT_i = 0;
-                navigation_msg.QUAT_j = 0;
-                navigation_msg.QUAT_k = 0;
-                navigation_msg.navigation_back = true; // 返回巡航位置
+                readParam(BT_YAML, GAME);
             }
         }
         else
@@ -118,12 +140,25 @@ namespace wmj
             game_msg_count = 0;
         }
 
+        if (last_armor_timestamp == armor_msg.armor_timestamp)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("REEOR INFO"), "Armor msg missing %d time", ++armor_msg_count);
+            if (armor_msg_count > 2)
+            {
+                readParam(BT_YAML, ARMOR);
+            }
+        }
+        else
+        {
+            armor_msg_count = 0;
+        }
+
         if (last_navigation_timestamp == navigation_msg.navigation_timestamp)
         {
             RCLCPP_INFO(rclcpp::get_logger("REEOR INFO"), "Navigation msg missing %d time", ++navigation_msg_count);
             if (navigation_msg_count > 2)
             {
-                navigation_msg.navigation_status = true;
+                readParam(BT_YAML, NAVIGATION);
             }
         }
         else
@@ -156,7 +191,7 @@ namespace wmj
 
         return BT::NodeStatus::SUCCESS;
     }
-
+    
     Top_Condition::Top_Condition(const std::string &name, const BT::NodeConfig &config)
         : BT::ConditionNode(name, config)
     {

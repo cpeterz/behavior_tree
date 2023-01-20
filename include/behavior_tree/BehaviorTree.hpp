@@ -4,8 +4,9 @@
 #include "base_interfaces/msg/shooter.hpp"
 #include "base_interfaces/msg/top.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "opencv2/opencv.hpp"
 #include "behaviortree_cpp/bt_factory.h"
-#include "behaviortree_cpp/loggers/bt_cout_logger.h"  //调试用头文件
+#include "behaviortree_cpp/loggers/bt_cout_logger.h" //调试用头文件
 // #include "behaviortree_cpp/loggers/bt_file_logger.h"
 // #include "behaviortree_cpp/loggers/bt_minitrace_logger.h"
 // #include "behaviortree_cpp/loggers/bt_zmq_publisher.h"
@@ -17,32 +18,41 @@ namespace wmj
     // 装甲板信息
     struct Armor_msg
     {
-        int armor_number = 0;       // 识别到的装甲板的数量
-        double armor_distance = 5;  // 最近的装甲板的距离
-        double armor_timestamp = 0; // 装甲板时间戳
+        int armor_number;       // 识别到的装甲板的数量
+        double armor_distance;  // 最近的装甲板的距离
+        double armor_timestamp; // 装甲板时间戳
     };
 
     // 导航信息
     struct Navigation_msg
     {
-        double QUAT_1 = 0; // 四元数实数
-        double QUAT_i = 0; // 四元数虚数部分
-        double QUAT_j = 0;
-        double QUAT_k = 0;
-        double navigation_timestamp = 0; // 导航事件戳
-        bool navigation_status = false;  // 当前导航状态，true表示正在移动
-        bool navigation_back = false;    // 是否返回出发点
+        double QUAT_1; // 四元数实数
+        double QUAT_i; // 四元数虚数部分
+        double QUAT_j;
+        double QUAT_k;
+        double navigation_timestamp; // 导航事件戳
+        bool navigation_status;      // 当前导航状态，true表示正在移动
+        bool navigation_back;        // 是否返回出发点
     };
 
     // 比赛状况信息
     struct Game_msg
     {
-        double outpost_blood = 1000; // 前哨站血量
-        double sentry_blood = 1000;  // 哨兵血量
-        int bullet_num = 700;        // 剩余子弹数目
-        double time_left = 300;      // 剩余比赛时间
-        double game_timestamp = 0;   // 比赛状况事件戳
-        bool manual_top = true;      // 是否手动开启小陀螺
+        double outpost_blood;  // 前哨站血量
+        double sentry_blood;   // 哨兵血量
+        int bullet_num;        // 剩余子弹数目
+        double time_left;      // 剩余比赛时间
+        double game_timestamp; // 比赛状况事件戳
+        bool manual_top;       // 是否手动开启小陀螺
+    };
+
+    // 读取参数
+    enum Read_Param
+    {
+        ALL,        // 所有参数
+        ARMOR,      // 装甲板参数
+        NAVIGATION, // 导航参数
+        GAME        // 比赛状况参数
     };
 
     // 共用ROS节点，负责收发消息
@@ -64,6 +74,7 @@ namespace wmj
 
         BT::NodeStatus tick() override; // tick函数，主运行函数
         static BT::PortsList providedPorts();
+        void readParam(std::string path, Read_Param mode);
 
     private:
         std::shared_ptr<rclcpp::Node> node_; // 信息发布收取节点
@@ -216,7 +227,7 @@ namespace wmj
                            rclcpp::Node::SharedPtr node)
             : Navigation_Node::Navigation_Node(name, config, node)
         {
-             RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Navigation_on_Node is working");
+            RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Navigation_on_Node is working");
         }
 
     private:
