@@ -3,7 +3,20 @@
 ~~**目前整棵树为Sequence结构，执行 `DataReadNode` , `Top_Node` , `Detect_Node` , `Navigation_Node`后处理回调.**~~
 
 **目前整颗树以拆分出一个个组成节点，包含八个动作节点和三个条件节点，可任意组合形成树**
+
 后期调试主要注意变量初始化问题
+
+**依赖** ：  `behaviortree_cpp`   `OpenCV`  `base_interfaces`  `rclcpp` `ament_cmake`
+
+**运行** ：正常ros2结点运行，可写入launch文件中。
+
+`colcon build`  
+
+`source ` 工作空间install目录
+
+`ros2 run behavior_tree behaviortree `
+
+
 
 ### 1.行为树架构
 
@@ -100,7 +113,6 @@ manual_top="{manual_top}"                   // 是否手动开启小陀螺
 ### 4.行为树逻辑
 
 ![](流程图.png)
-
 
 
 
