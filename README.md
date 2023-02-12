@@ -20,9 +20,9 @@
 
 ### 1.行为树架构
 
-![](行为树架构.png)
+![](image/行为树架构.png)
 
-![](行为树结构.png)
+![](image/行为树结构.png)
 
 
 ### 2.ROS订阅发布：
@@ -84,7 +84,7 @@ bool navigation_continue;  //导航是否继续
 
 
 ### 3.行为树内部entry
-![](内部键值对.png)
+![](image/内部键值对.png)
 
 ```c++
 armor_number="{armor_number}"               // 识别到的装甲板的数量
@@ -112,7 +112,7 @@ manual_top="{manual_top}"                   // 是否手动开启小陀螺
 
 ### 4.行为树逻辑
 
-![](流程图.png)
+![](image/流程图.png)
 
 
 
