@@ -1,4 +1,4 @@
-# 行为树 v1.1
+# 行为树 v1.2
 
 ~~**目前整棵树为Sequence结构，执行 `DataReadNode` , `Top_Node` , `Detect_Node` , `Navigation_Node`后处理回调.**~~
 
@@ -16,16 +16,18 @@
 
 `ros2 run behavior_tree behaviortree `
 
+### 1.行为树逻辑
 
+![](image/流程图.png)
 
-### 1.行为树架构
+### 2.行为树架构
 
 ![](image/行为树架构.png)
 
 ![](image/行为树结构.png)
 
 
-### 2.ROS订阅发布：
+### 3.ROS订阅发布：
 
 ```c++
 //subscription:
@@ -56,14 +58,9 @@ struct Armor_msg
 //Navigation   从通讯节点获取,使用接口：Game.msg中的 Navigation
 struct Navigation_msg
     {
-        double QUAT_1;   // 四元数实数
-        double QUAT_i;   // 四元数虚数部分
-        double QUAT_j;
-        double QUAT_k;
         double navigation_timestamp; // 导航事件戳
         bool navigation_status;   // 当前导航状态，true表示正在移动
         bool navigation_back;  //是否需要返回巡逻区域
-        
     };
 
 //BT_shooter   发向通讯节点,使用接口: Shooter.msg
@@ -73,28 +70,19 @@ bullet_rate   // 射速
 top_status  // 小陀螺状态
 
 //BT_navigation  发向导航节点,使用接口: Navigation.msg
-double QUAT_1;   // 四元数实数
-double QUAT_i;   // 四元数虚数部分
-double QUAT_j;
-double QUAT_k;
 bool navigation_back;  //是否返回巡逻区
 bool navigation_continue;  //导航是否继续
 ```
 
 
 
-### 3.行为树内部entry
+### 4.行为树内部entry
 ![](image/内部键值对.png)
 
 ```c++
 armor_number="{armor_number}"               // 识别到的装甲板的数量
 armor_distance="{armor_distance}"           // 最近的装甲板的距离
 armor_timestamp="{armor_timestamp}"         // 装甲板时间戳
- 
-QUAT_1="{QUAT_1}"                  // 四元数实数
-QUAT_i="{QUAT_i}"                  // 四元数虚数部分
-QUAT_j="{QUAT_j}" 
-QUAT_k="{QUAT_k}" 
             
 navigation_timestamp="{navigation_timestamp}"  // 导航事件戳
 navigation_status="{navigation_status}"        // 当前导航状态，true表示正在移动
@@ -107,12 +95,6 @@ time_left="{time_left}"                     // 剩余比赛时间
 game_timestamp="{game_timestamp}"           // 比赛状况事件戳
 manual_top="{manual_top}"                   // 是否手动开启小陀螺
 ```
-
-
-
-### 4.行为树逻辑
-
-![](image/流程图.png)
 
 
 

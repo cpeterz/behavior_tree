@@ -26,10 +26,6 @@ namespace wmj
     // 导航信息
     struct Navigation_msg
     {
-        double QUAT_1; // 四元数实数
-        double QUAT_i; // 四元数虚数部分
-        double QUAT_j;
-        double QUAT_k;
         double navigation_timestamp; // 导航事件戳
         bool navigation_status;      // 当前导航状态，true表示正在移动
         bool navigation_back;        // 是否返回出发点

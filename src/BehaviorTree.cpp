@@ -12,10 +12,6 @@ namespace wmj
             fs["init_armor_number"] >> this->armor_msg.armor_number;
             fs["init_armor_distance"] >> this->armor_msg.armor_distance;
             fs["init_armor_timestamp"] >> this->armor_msg.armor_timestamp;
-            fs["init_QUAT_1"] >> this->navigation_msg.QUAT_1;
-            fs["init_QUAT_i"] >> this->navigation_msg.QUAT_i;
-            fs["init_QUAT_j"] >> this->navigation_msg.QUAT_j;
-            fs["init_QUAT_k"] >> this->navigation_msg.QUAT_k;
             fs["init_navigation_timestamp"] >> this->navigation_msg.navigation_timestamp;
             fs["init_navigation_status "] >> this->navigation_msg.navigation_status;
             fs["init_navigation_back"] >> this->navigation_msg.navigation_back;
@@ -82,10 +78,6 @@ namespace wmj
         RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Game msg get");
         // 更新导航信息
         navigation_msg.navigation_timestamp = msg->navigation.navigation_timestamp;
-        navigation_msg.QUAT_1 = msg->navigation.quat_1;
-        navigation_msg.QUAT_i = msg->navigation.quat_i;
-        navigation_msg.QUAT_j = msg->navigation.quat_j;
-        navigation_msg.QUAT_k = msg->navigation.quat_k;
         RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Navigation msg get");
     }
 
@@ -105,10 +97,6 @@ namespace wmj
         ports_list.insert(BT::OutputPort<double>("armor_distance"));
         ports_list.insert(BT::OutputPort<double>("armor_timestamp"));
 
-        ports_list.insert(BT::OutputPort<double>("QUAT_1"));
-        ports_list.insert(BT::OutputPort<double>("QUAT_i"));
-        ports_list.insert(BT::OutputPort<double>("QUAT_j"));
-        ports_list.insert(BT::OutputPort<double>("QUAT_k"));
         ports_list.insert(BT::OutputPort<double>("navigation_timestamp"));
         ports_list.insert(BT::OutputPort<bool>("navigation_status"));
 
@@ -174,10 +162,6 @@ namespace wmj
         setOutput("armor_distance", armor_msg.armor_distance);
         setOutput("armor_timestamp", armor_msg.armor_timestamp);
 
-        setOutput("QUAT_1", navigation_msg.QUAT_1);
-        setOutput("QUAT_i", navigation_msg.QUAT_i);
-        setOutput("QUAT_j", navigation_msg.QUAT_j);
-        setOutput("QUAT_k", navigation_msg.QUAT_k);
         setOutput("navigation_timestamp", navigation_msg.navigation_timestamp);
         setOutput("navigation_status", navigation_msg.navigation_status);
         setOutput("navigation_back", navigation_msg.navigation_back);
@@ -424,10 +408,6 @@ namespace wmj
     {
         BT::PortsList port_lists;
 
-        port_lists.insert(BT::InputPort<double>("QUAT_1"));
-        port_lists.insert(BT::InputPort<double>("QUAT_i"));
-        port_lists.insert(BT::InputPort<double>("QUAT_j"));
-        port_lists.insert(BT::InputPort<double>("QUAT_k"));
         port_lists.insert(BT::InputPort<bool>("navigation_back"));
 
         return port_lists;
@@ -435,27 +415,14 @@ namespace wmj
 
     BT::NodeStatus Navigation_on_Node::tick()
     {
-        auto QUAT_1 = getInput<double>("QUAT_1");
-        auto QUAT_i = getInput<double>("QUAT_i");
-        auto QUAT_j = getInput<double>("QUAT_j");
-        auto QUAT_k = getInput<double>("QUAT_k");
         auto navigation_back = getInput<bool>("navigation_back");
 
-        if (!QUAT_1)
-        {
-            throw BT::RuntimeError("detect_node missing required input [message]:",
-                                   QUAT_1.error());
-        }
-        else if (!navigation_back)
+        if (!navigation_back)
         {
             throw BT::RuntimeError("detect_node missing required input [message]:",
                                    navigation_back.error());
         }
 
-        msg.quat_1 = QUAT_1.value();
-        msg.quat_i = QUAT_i.value();
-        msg.quat_j = QUAT_j.value();
-        msg.quat_k = QUAT_k.value();
         msg.back = navigation_back.value();
         msg.navigation_continue = true;
 
@@ -510,7 +477,7 @@ int main(int argc, char **argv)
     //  BT::MinitraceLogger logger_minitrace(tree,"bt_trace.json");
     //  BT::PublisherZMQ publisher_zmq(tree);
     BT::printTreeRecursively(tree.rootNode());
-    // tree.subtrees[0]->blackboard->debugMessage();
+    tree.subtrees[0]->blackboard->debugMessage();
    
     rclcpp::Rate loop_rate(2);
     while (rclcpp::ok())
