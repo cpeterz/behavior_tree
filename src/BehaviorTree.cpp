@@ -61,7 +61,7 @@ namespace wmj
     {
         // 更新装甲板数据
         armor_msg.armor_distance = msg->distance;
-        armor_msg.armor_timestamp = msg->time_seq[0];
+        armor_msg.armor_timestamp = msg->armors[0].time_seq;
         armor_msg.armor_number = msg->num;
         RCLCPP_INFO(rclcpp::get_logger("get msg"), "Armor msg get");
     }
