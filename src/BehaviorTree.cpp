@@ -31,18 +31,19 @@ namespace wmj
             fs["bullet_num"] >> this->game_msg.bullet_num;
             fs["time_left"] >> this->game_msg.time_left;
             break;
-        case NAVIGATION: // 导航消息暂时无用
+        case NAVIGATION: 
             RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-navigation msg");
-            // fs["navigation_status"] >> this->navigation_msg.navigation_status;
+            fs["navigation_status"] >> this->navigation_msg.navigation_status;
             break;
         case GAME:
             RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-game msg");
             fs["manual_top"] >> this->game_msg.manual_top;
-            fs["init_navigation_back"] >> this->navigation_msg.navigation_back;
-            break;
+            fs["navigation_back"] >> this->navigation_msg.navigation_back;
+            break;     
         }
     }
 
+//------------------------------------------------------ DataReadNode ---------------------------------------------------------------    
     DataReadNode::DataReadNode(const std::string &name, const BT::NodeConfig &config,
                                rclcpp::Node::SharedPtr node)
         : BT::SyncActionNode(name, config), node_(node)
@@ -61,7 +62,7 @@ namespace wmj
     {
         // 更新装甲板数据
         armor_msg.armor_distance = msg->distance;
-        armor_msg.armor_timestamp = msg->armors[0].time_seq;
+        armor_msg.armor_timestamp = msg->time_stamp;
         armor_msg.armor_number = msg->num;
         RCLCPP_INFO(rclcpp::get_logger("get msg"), "Armor msg get");
     }
@@ -76,15 +77,13 @@ namespace wmj
         game_msg.time_left = msg->time_left;
         game_msg.sentry_blood = msg->sentry_blood;
         RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Game msg get");
-        // 更新导航信息
-        navigation_msg.navigation_timestamp = msg->navigation.navigation_timestamp;
-        RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Navigation msg get");
     }
 
     // 订阅当前导航状态
     void DataReadNode::navigation_call_back(const base_interfaces::msg::Navigation::SharedPtr msg)
     {
-        navigation_msg.navigation_status = msg->navigation_on;
+        navigation_msg.navigation_status = msg->navigation_status;
+        navigation_msg.navigation_timestamp = msg->navigation_timestamp;
         RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Navigation status msg get");
     }
 
@@ -100,10 +99,10 @@ namespace wmj
         ports_list.insert(BT::OutputPort<double>("navigation_timestamp"));
         ports_list.insert(BT::OutputPort<bool>("navigation_status"));
 
-        ports_list.insert(BT::OutputPort<double>("outpost_blood"));
-        ports_list.insert(BT::OutputPort<double>("sentry_blood"));
+        ports_list.insert(BT::OutputPort<int>("outpost_blood"));
+        ports_list.insert(BT::OutputPort<int>("sentry_blood"));
         ports_list.insert(BT::OutputPort<int>("bullet_num"));
-        ports_list.insert(BT::OutputPort<double>("time_left"));
+        ports_list.insert(BT::OutputPort<int>("time_left"));
         ports_list.insert(BT::OutputPort<double>("game_timestamp"));
         ports_list.insert(BT::OutputPort<bool>("manual_top"));
 
@@ -111,49 +110,66 @@ namespace wmj
         return ports_list;
     }
 
-      BT::NodeStatus DataReadNode::tick()
+    BT::NodeStatus DataReadNode::tick()
     {
-        // 连续三次消息未更新，则使用默认数据
-        if (last_game_timestamp == game_msg.game_timestamp)
+        rclcpp::Rate loop_rate(10);   
+        while (last_game_timestamp == game_msg.game_timestamp)
         {
-            RCLCPP_INFO(rclcpp::get_logger("REEOR INFO"), "Game msg missing %d time", ++game_msg_count);
-            if (game_msg_count > 2)
+            // 三秒内未收到消息则使用默认数据
+            if (m_waitGameMsgTime > 3000 || game_msg_count == 0)
             {
+                game_msg_count++;
                 readParam(BT_YAML, GAME);
+                break;
             }
+            loop_rate.sleep();    // 等待 100ms
+            m_waitGameMsgTime += 100 ;
+            RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Game Msg %lf ms", m_waitGameMsgTime);
         }
-        else
+        if (last_game_timestamp != game_msg.game_timestamp)
         {
-            navigation_msg.navigation_back = false;
-            game_msg_count = 0;
+            m_waitGameMsgTime = 0;
         }
 
-        if (last_armor_timestamp == armor_msg.armor_timestamp)
+        while (last_armor_timestamp == armor_msg.armor_timestamp)
         {
-            RCLCPP_INFO(rclcpp::get_logger("REEOR INFO"), "Armor msg missing %d time", ++armor_msg_count);
-            if (armor_msg_count > 2)
+            if (m_waitArmorMsgTime > 3000 || armor_msg_count == 0)
             {
+                armor_msg_count++;
                 readParam(BT_YAML, ARMOR);
+                break;
             }
+            loop_rate.sleep();    // 等待 100ms
+            m_waitArmorMsgTime += 100 ;
+            RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Armor Msg %lf ms", m_waitArmorMsgTime);
         }
-        else
+        if (last_armor_timestamp != armor_msg.armor_timestamp)
         {
-            armor_msg_count = 0;
+            m_waitArmorMsgTime = 0;
         }
 
-        if (last_navigation_timestamp == navigation_msg.navigation_timestamp)
+        std::cout << "armor_number:" << armor_msg.armor_number << std::endl;
+        std::cout << "armor_distance:" << armor_msg.armor_distance << std::endl;
+
+        while (last_navigation_timestamp == navigation_msg.navigation_timestamp)
         {
-            RCLCPP_INFO(rclcpp::get_logger("REEOR INFO"), "Navigation msg missing %d time", ++navigation_msg_count);
-            if (navigation_msg_count > 2)
+            if (m_waitNavigationMsgTime > 3000 || navigation_msg_count == 0)
             {
+                navigation_msg_count++;
                 readParam(BT_YAML, NAVIGATION);
+                break;
             }
+            loop_rate.sleep();    // 等待 100ms
+            m_waitNavigationMsgTime += 100 ;
+            RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Navigation Msg %lf ms", m_waitNavigationMsgTime);
         }
-        else
+        if (last_navigation_timestamp != navigation_msg.navigation_timestamp)
         {
-            navigation_msg_count = 0;
+            m_waitNavigationMsgTime = 0;
+            // 导航信息更新中则不自动返回巡逻区
+            navigation_msg.navigation_back = false;
         }
-
+        
         last_armor_timestamp = armor_msg.armor_timestamp;
         last_game_timestamp = game_msg.game_timestamp;
         last_navigation_timestamp = navigation_msg.navigation_timestamp;
@@ -161,7 +177,7 @@ namespace wmj
         setOutput("armor_number", armor_msg.armor_number);
         setOutput("armor_distance", armor_msg.armor_distance);
         setOutput("armor_timestamp", armor_msg.armor_timestamp);
-
+        
         setOutput("navigation_timestamp", navigation_msg.navigation_timestamp);
         setOutput("navigation_status", navigation_msg.navigation_status);
         setOutput("navigation_back", navigation_msg.navigation_back);
@@ -175,7 +191,286 @@ namespace wmj
 
         return BT::NodeStatus::SUCCESS;
     }
+
+//------------------------------------------------------ Top_Node ---------------------------------------------------------------    
     
+    /**
+     * @brief 小陀螺基类,子类包括开启小陀螺节点和关闭小陀螺节点
+    */
+    Top_Node::Top_Node(const std::string &name, const BT::NodeConfig &config,
+                       rclcpp::Node::SharedPtr node)
+        : BT::SyncActionNode(name, config), node_(node)
+    {
+        topPub = node->create_publisher<base_interfaces::msg::BtTop>("BT_top", 10);
+    }
+
+    BT::PortsList Top_Node::providedPorts()
+    {
+        BT::PortsList port_lists;
+        port_lists.insert(BT::OutputPort<bool>("top_status"));
+        return port_lists;
+    }
+   
+    /**
+     * @brief 开启小陀螺节点
+     * 
+    */
+    BT::NodeStatus Top_on_Node::tick()
+    {
+        msg.start = true;
+        msg.top_timestamp = wmj::now();
+        setOutput<bool>("top_status", msg.start);
+        topPub->publish(msg);
+        return BT::NodeStatus::SUCCESS;
+    }
+    
+    /**
+     * @brief 关闭小陀螺节点
+    */
+    BT::NodeStatus Top_off_Node::tick()
+    {
+        msg.start = false;
+        msg.top_timestamp = wmj::now();
+        setOutput<bool>("top_status", msg.start);
+        topPub->publish(msg);
+        return BT::NodeStatus::SUCCESS;
+    }
+
+//------------------------------------------------------ Shoot_Node ---------------------------------------------------------------    
+    
+    /**
+     * @brief 发射基类，子类包括 限制性发射节点 ， 无限制发射节点 ， 不发射节点
+    */
+    Shoot_Node::Shoot_Node(const std::string &name, const BT::NodeConfig &config,
+                           rclcpp::Node::SharedPtr node)
+        : BT::SyncActionNode(name, config), node_(node)
+    {
+        pub_shooter = node->create_publisher<base_interfaces::msg::BtAimer>("BT_shooter", 10);
+    }
+
+    BT::PortsList Shoot_Node::providedPorts()
+    {
+        BT::PortsList port_list;
+        port_list.insert(BT::InputPort<int>("bullet_rate"));
+        return port_list;
+    }
+    
+    /**
+     * @brief 无限制发射节点
+     * 
+     * @return 最大弹频
+    */
+    BT::NodeStatus No_Limit_Shoot_Node::tick()
+    {
+        msg.bullet_rate = 20; // 最大弹速
+        msg.btaimer_timestamp = wmj::now();
+        pub_shooter->publish(msg);
+        return BT::NodeStatus::SUCCESS;
+    }
+    
+    /**
+     * @brief 限制性发射节点
+     * 
+     * @return bullet_rate 弹频
+    */
+    BT::NodeStatus Limit_Shoot_Node::tick()
+    {
+        auto bullet_rate = getInput<int>("bullet_rate");
+        msg.bullet_rate = bullet_rate.value();
+        msg.btaimer_timestamp = wmj::now();
+        pub_shooter->publish(msg);
+        return BT::NodeStatus::SUCCESS;
+    }
+    
+    /**
+     * @brief 不发射节点
+    */
+    BT::NodeStatus No_Shoot_Node::tick()
+    {
+        msg.bullet_rate = -1;
+        msg.btaimer_timestamp = wmj::now();
+        pub_shooter->publish(msg);
+        return BT::NodeStatus::SUCCESS;
+    }
+
+//------------------------------------------------------ Navigation_Node ---------------------------------------------------------------    
+    
+    /**
+     * @brief 导航基类，子类包括 开启导航节点，关闭导航节点，自动返航节点
+    */
+    Navigation_Node::Navigation_Node(const std::string &name, const BT::NodeConfig &config,
+                                     rclcpp::Node::SharedPtr node)
+        : BT::SyncActionNode(name, config), node_(node)
+    {
+        navigationPub = node->create_publisher<base_interfaces::msg::BtNavigation>("BT_navigation", 10);
+    }
+    
+    BT::PortsList Navigation_Node::providedPorts()
+    {
+        BT::PortsList port_lists;
+
+        port_lists.insert(BT::InputPort<bool>("navigation_back"));
+
+        return port_lists;
+    }
+
+    /**
+     * @brief 开启导航节点
+     * 
+     * @param navigation_back 是否返航
+    */
+    BT::NodeStatus Navigation_on_Node::tick()
+    {
+        auto navigation_back = getInput<bool>("navigation_back");
+
+        if (!navigation_back)
+        {
+            throw BT::RuntimeError("detect_node missing required input [message]:",
+                                   navigation_back.error());
+        }
+
+        msg.navigation_back = navigation_back.value();
+        msg.navigation_continue = true;
+        msg.bt_navigation_timestamp = wmj::now();
+
+        navigationPub->publish(msg);
+        return BT::NodeStatus::SUCCESS;
+    }
+    
+    /**
+     * @brief 导航关闭节点
+    */
+    BT::NodeStatus Navigation_off_Node::tick()
+    {
+        msg.navigation_continue = false;
+        msg.navigation_back = false;
+        msg.bt_navigation_timestamp = wmj::now();
+
+        navigationPub->publish(msg);
+        return BT::NodeStatus::SUCCESS;
+    }
+
+    /**
+     * @brief 返航节点
+    */
+    BT::NodeStatus Navigation_back_Node::tick()
+    {
+        msg.navigation_back = true;
+        msg.navigation_continue = true;
+        msg.bt_navigation_timestamp = wmj::now();
+        
+        navigationPub->publish(msg);
+        return BT::NodeStatus::SUCCESS;
+    }
+
+//------------------------------------------------------ Scan_Node ---------------------------------------------------------------    
+    
+    /**
+     * @brief 扫描基类
+    */
+    Scan_Node::Scan_Node(const std::string &name, const BT::NodeConfig &config,
+                         rclcpp::Node::SharedPtr node)
+        : BT::SyncActionNode(name, config), node_(node)
+    {
+        ScanPub = node->create_publisher<base_interfaces::msg::BtScan>("BtScan", 10);
+    }
+
+    BT::PortsList Scan_Node::providedPorts()
+    {
+        BT::PortsList port_lists;
+        return port_lists;
+    }
+    
+    /**
+     * @brief 开启扫描节点
+    */
+    BT::NodeStatus Scan_on_Node::tick()
+    {
+        msg.scan_on = true;
+        msg.scan_timestamp = wmj::now();
+        ScanPub->publish(msg);
+        return BT::NodeStatus::SUCCESS;
+    }
+
+    /**
+     * @brief 关闭扫描节点
+    */
+    BT::NodeStatus Scan_off_Node::tick()
+    {
+        msg.scan_on = false;
+        msg.scan_timestamp = wmj::now();
+        ScanPub->publish(msg);
+        return BT::NodeStatus::SUCCESS;
+    }
+
+// ------------------------------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------               Condition               --------------------------------------------------------
+// ------------------------------------------------------------------------------------------------------------------------------------------
+
+//------------------------------------------------------ Navigation_Condition ---------------------------------------------------------------    
+    /**
+     * @brief 导航条件节点，根据导航状态判断开启导航或者扫描
+    */
+    Navigation_Condition::Navigation_Condition(const std::string &name, const BT::NodeConfig &config)
+        : BT::ConditionNode(name, config)
+    {
+        RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Navigation_Condition Node is working");
+    }
+
+    BT::PortsList Navigation_Condition::providedPorts()
+    {
+        BT::PortsList port_lists;
+        port_lists.insert(BT::InputPort<bool>("navigation_status"));
+        return port_lists;
+    }
+    
+    /**
+     * @brief 获取导航状态，根据导航状态判断。True则开启导航,否则开启扫描。
+     * 
+     * @param navigation_status  当前导航状态
+     * 
+     * @return 是否开启导航
+     */ 
+    bool Navigation_Condition::GetNavigationStatus()
+    {
+        auto navigation_status = getInput<bool>("navigation_status");
+        if(!navigation_status)
+        {
+            throw BT::RuntimeError("navigation_condition missing required input [message]:",
+                                   navigation_status.error());
+        }
+
+        if(navigation_status.value())
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    
+    /**
+     * @brief 根据导航状态判断开启导航或是扫描
+     */
+    BT::NodeStatus Navigation_Condition::tick()
+    {
+        bool navigation_status = GetNavigationStatus();
+        if(navigation_status)
+        {
+            return BT::NodeStatus::SUCCESS;
+        }
+        else
+        {
+            return BT::NodeStatus::FAILURE;
+        }
+    }
+
+//------------------------------------------------------ Top_Condition ---------------------------------------------------------------    
+    // 小陀螺条件节点
+    /**
+     * @brief 小陀螺条件节点，根据手动命令或是前哨站血量判断是否开启小陀螺
+    */
     Top_Condition::Top_Condition(const std::string &name, const BT::NodeConfig &config)
         : BT::ConditionNode(name, config)
     {
@@ -184,18 +479,25 @@ namespace wmj
 
     BT::PortsList Top_Condition::providedPorts()
     {
-         std::cout << "3-----------------" << std::endl;
         BT::PortsList port_lists;
 
-        port_lists.insert(BT::InputPort<double>("outpost_blood"));
+        port_lists.insert(BT::InputPort<int>("outpost_blood"));
         port_lists.insert(BT::InputPort<bool>("manual_top"));
 
         return port_lists;
     }
-
+    
+    /**
+     * @brief 获取小陀螺状态
+     * 
+     * @param outpost_blood 前哨站血量
+     * @param manual_top 是否手动开启小陀螺
+     * 
+     * @return 是否开启小陀螺，开启则返回 true
+    */
     bool Top_Condition::Get_Top_Status()
     {
-        auto outpost_blood = getInput<double>("outpost_blood");
+        auto outpost_blood = getInput<int>("outpost_blood");
         auto manual_top = getInput<bool>("manual_top");
 
         if (!outpost_blood)
@@ -213,7 +515,7 @@ namespace wmj
             return false;
         }
     }
-
+   
     BT::NodeStatus Top_Condition::tick()
     {
         bool top_status = Get_Top_Status();
@@ -227,72 +529,13 @@ namespace wmj
         }
     }
 
-    Top_Node::Top_Node(const std::string &name, const BT::NodeConfig &config,
-                       rclcpp::Node::SharedPtr node)
-        : BT::SyncActionNode(name, config), node_(node)
-    {
-        pub_top = node->create_publisher<base_interfaces::msg::Top>("BT_top", 10);
-    }
-
-    BT::PortsList Top_Node::providedPorts()
-    {
-        BT::PortsList port_lists;
-        port_lists.insert(BT::OutputPort<bool>("top_status"));
-        return port_lists;
-    }
-
-    BT::NodeStatus Top_on_Node::tick()
-    {
-        msg.start = true;
-        setOutput<bool>("top_status", msg.start);
-        pub_top->publish(msg);
-        return BT::NodeStatus::SUCCESS;
-    }
-
-    BT::NodeStatus Top_off_Node::tick()
-    {
-        msg.start = false;
-        setOutput<bool>("top_status", msg.start);
-        pub_top->publish(msg);
-        return BT::NodeStatus::SUCCESS;
-    }
-
-    Shoot_Node::Shoot_Node(const std::string &name, const BT::NodeConfig &config,
-                           rclcpp::Node::SharedPtr node)
-        : BT::SyncActionNode(name, config), node_(node)
-    {
-        pub_shooter = node->create_publisher<base_interfaces::msg::Shooter>("BT_shooter", 10);
-    }
-
-    BT::PortsList Shoot_Node::providedPorts()
-    {
-        BT::PortsList port_list;
-        port_list.insert(BT::InputPort<int>("bullet_rate"));
-        return port_list;
-    }
-
-    BT::NodeStatus No_Limit_Shoot_Node::tick()
-    {
-        msg.bulletnum = 20; // 最大弹速
-        pub_shooter->publish(msg);
-        return BT::NodeStatus::SUCCESS;
-    }
-
-    BT::NodeStatus Limit_Shoot_Node::tick()
-    {
-        auto bullet_rate = getInput<int>("bullet_rate");
-        msg.bulletnum = bullet_rate.value();
-        pub_shooter->publish(msg);
-        return BT::NodeStatus::SUCCESS;
-    }
-
-    BT::NodeStatus No_Shoot_Node::tick()
-    {
-        msg.bulletnum = 0;
-        pub_shooter->publish(msg);
-        return BT::NodeStatus::SUCCESS;
-    }
-
+//------------------------------------------------------ Pose_Condition ---------------------------------------------------------------    
+    
+    /**
+     * @brief 姿态条件节点，根据小陀螺状态判断当前姿态
+     * 
+     * @param top_status 小陀螺状态
+     */
     Pose_Condition::Pose_Condition(const std::string &name, const BT::NodeConfig &config)
         : BT::ConditionNode(name, config)
     {
@@ -331,7 +574,70 @@ namespace wmj
         bool top_status = Get_Current_Pose();
         if (top_status)
         {
-            return BT::NodeStatus::SUCCESS; // 进入防御姿态
+            return BT::NodeStatus::SUCCESS; 
+        }
+        else
+        {
+            return BT::NodeStatus::FAILURE;
+        }
+    }
+//------------------------------------------------------ Scan_Condition ---------------------------------------------------------------    
+    /**
+     * @brief 扫描条件节点，根据装甲板识别信息判断开启自瞄或是扫描
+    */
+    Scan_Condition::Scan_Condition(const std::string &name, const BT::NodeConfig &config)
+        : BT::ConditionNode(name, config)
+    {
+        RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Scan_Condition Node is working");
+    }
+
+    BT::PortsList Scan_Condition::providedPorts()
+    {
+        BT::PortsList port_lists;
+        port_lists.insert(BT::InputPort<double>("armor_distance"));
+        port_lists.insert(BT::InputPort<int>("armor_number"));
+        return port_lists;
+    }
+    
+    /**
+     * @brief 获取扫描状态，根据装甲板识别效果判断。True则开启扫描,否则开启自瞄。
+     * 
+     * @param armor_distance  最近装甲板距离
+     * @param armor_number    识别到的装甲板数量
+     * 
+     * @return 是否开启扫描
+    */ 
+    bool Scan_Condition::GetScanStatus()
+    {
+        auto armor_number = getInput<int>("armor_number");
+        auto armor_distance = getInput<double>("armor_distance");
+
+        if (!armor_distance)
+        {
+            throw BT::RuntimeError("Scan Condition missing required input [message]:",
+                                   armor_distance.error());
+        }
+        
+        // 若在八米内识别到装甲板，则开启自瞄无限制击打，否则开启扫描
+        if (armor_number.value() > 0 && armor_distance.value() < 8000)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+
+    /**
+     * @brief 根据扫描状态判断开启扫描或是自瞄
+    */
+    BT::NodeStatus Scan_Condition::tick()
+    {
+        bool scan_status = GetScanStatus();
+        if (scan_status)
+        {
+            return BT::NodeStatus::SUCCESS; 
         }
         else
         {
@@ -339,54 +645,163 @@ namespace wmj
         }
     }
 
-    Navigation_Condition::Navigation_Condition(const std::string &name, const BT::NodeConfig &config)
+//------------------------------------------------------ Back_Condition ---------------------------------------------------------------    
+ 
+    /**
+     * @brief 默认动作条件节点，根据识别信息判断开启返航或者自瞄
+    */
+    Back_Condition::Back_Condition(const std::string &name, const BT::NodeConfig &config)
         : BT::ConditionNode(name, config)
     {
-        RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Navigation_Condition Node is working");
+        RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Back_Condition Node is working");
     }
 
-    BT::PortsList Navigation_Condition::providedPorts()
+    BT::PortsList Back_Condition::providedPorts()
+    {
+        BT::PortsList port_lists;
+        port_lists.insert(BT::InputPort<double>("armor_distance"));
+        port_lists.insert(BT::InputPort<int>("armor_number"));
+        return port_lists;
+    }
+    
+    /**
+     * @brief 根据识别信息判断开启返航或者自瞄，True则返航，否则开启自瞄无限制击打
+     * 
+     * @param armor_distance   最近装甲板距离
+     * @param armor_number     识别到的装甲板数量
+     * 
+     * @return 是否返航
+    */ 
+    bool Back_Condition::GetBackStatus()
+    {
+        auto armor_number = getInput<int>("armor_number");
+        auto armor_distance = getInput<double>("armor_distance");
+
+        if (!armor_distance)
+        {
+            throw BT::RuntimeError("Back Condition missing required input [message]:",
+                                   armor_distance.error());
+        }
+        
+        // 若在两米内识别到装甲板，则开启自瞄无限制击打，否则返航
+        if (armor_number.value() > 0 && armor_distance.value() < 2000)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+
+    /**
+     * @brief 根据返航状态判断开启返航或是自瞄
+    */
+    BT::NodeStatus Back_Condition::tick()
+    {
+        bool back_status = GetBackStatus();
+        if (back_status)
+        {
+            return BT::NodeStatus::SUCCESS; 
+        }
+        else
+        {
+            return BT::NodeStatus::FAILURE;
+        }
+    }
+
+//------------------------------------------------------ Attack_Main_Condition ---------------------------------------------------------------    
+
+    /**
+     * @brief 进攻姿态下条件节点，综合各种情况进行行为选择
+    */
+    Attack_Main_Condition::Attack_Main_Condition(const std::string &name, const BT::NodeConfig &config)
+        : BT::ConditionNode(name, config)
+    {
+        RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Attack_Main_Condition Node is working");
+    }
+
+    BT::PortsList Attack_Main_Condition::providedPorts()
     {
         BT::PortsList port_lists;
 
         port_lists.insert(BT::InputPort<int>("armor_number"));
         port_lists.insert(BT::InputPort<double>("armor_distance"));
 
-        port_lists.insert(BT::InputPort<double>("sentry_blood"));
+        port_lists.insert(BT::InputPort<int>("sentry_blood"));
         port_lists.insert(BT::InputPort<int>("bullet_num"));
-        port_lists.insert(BT::InputPort<double>("time_left"));
-        port_lists.insert(BT::InputPort<double>("outpost_blood"));
+        port_lists.insert(BT::InputPort<int>("time_left"));
+        port_lists.insert(BT::InputPort<int>("outpost_blood"));
+        port_lists.insert(BT::InputPort<bool>("navigation_status"));
 
         port_lists.insert(BT::OutputPort<int>("bullet_rate"));
-
         return port_lists;
     }
-
-    int Navigation_Condition::Get_Bullet_Rate()
+    
+    /**
+     * @brief 进攻姿态下决定是否开启自瞄，将综合各种情况计算出当前弹频
+     * 
+     * @param armor_distance     最近装甲板距离
+     * @param armor_number       装甲板数量
+     * @param bullet_num         剩余子弹数量
+     * @param navigation_status  当前导航状态
+     * @param outpost_blood      前哨站血量
+     * @param sentry_blood       哨兵血量 
+     * 
+     * @return bullet_rate弹频
+    */
+    int Attack_Main_Condition::AttackCondition()
     {
         auto armor_number = getInput<int>("armor_number");
         auto armor_distance = getInput<double>("armor_distance");
-        auto sentry_blood = getInput<double>("sentry_blood");
+        auto sentry_blood = getInput<int>("sentry_blood");
         auto bullet_num = getInput<int>("bullet_num");
         auto time_left = getInput<int>("time_left");
-        auto outpost_blood = getInput<double>("outpost_blood");
+        auto outpost_blood = getInput<int>("outpost_blood");
+        auto navigation_status = getInput<bool>("navigation_status");
+
 
         if (!armor_number)
         {
             throw BT::RuntimeError("detect_node missing required input [message]:",
                                    armor_number.error());
         }
+ 
+        int bullet_rate = (int)(-10 + sqrt(time_left.value()) + 0.3 * sqrt(bullet_num.value()) -
+                                (armor_distance.value() / 100) * (armor_distance.value() / 100) * (armor_distance.value() / 100)); 
 
-        int bullet_rate = (int)(20 + sqrt(time_left.value()) - 0.3 * sqrt(bullet_num.value()) -
-                                (armor_distance.value() / 1000) * (armor_distance.value() / 1000) * (armor_distance.value() / 1000)) %
-                          20; // 瞎写的，后面改
+        std::cout << "bullet_rate:" << bullet_rate << std::endl;
+        
+        // 导航状态对判断条件进行削减并对确定后条件进行增强
+        if( navigation_status )
+        {
+            if(bullet_rate*0.75 > 5)
+            {
+                bullet_rate = bullet_rate*1.25;
+            }
+            else
+            {
+                bullet_rate = -1;
+            }
+        }
+        
+        if(bullet_rate > 20)
+        {
+            bullet_rate = 20;
+        }
         setOutput("bullet_rate", bullet_rate);
         return bullet_rate;
     }
 
-    BT::NodeStatus Navigation_Condition::tick()
+    /**
+     * @brief Attack_Main_Condition判断函数，将弹频与阈值进行比较，大于阈值则返回SUCCESS，
+     *        开启自瞄，否则返回FAILURE，不开启自瞄。
+     * 
+     * @param bullet_rate      弹频
+    */
+    BT::NodeStatus Attack_Main_Condition::tick()
     {
-        int bullet_rate = Navigation_Condition::Get_Bullet_Rate();
+        int bullet_rate = AttackCondition();
         if (bullet_rate > 5)
         {
             return BT::NodeStatus::SUCCESS;
@@ -397,56 +812,104 @@ namespace wmj
         }
     }
 
-    Navigation_Node::Navigation_Node(const std::string &name, const BT::NodeConfig &config,
-                                     rclcpp::Node::SharedPtr node)
-        : BT::SyncActionNode(name, config), node_(node)
+
+//------------------------------------------------------ Defend_Main_Condition ---------------------------------------------------------------    
+
+    /**
+     * @brief 防御姿态下条件节点，综合各种情况进行行为选择
+    */
+    Defend_Main_Condition::Defend_Main_Condition(const std::string &name, const BT::NodeConfig &config)
+        : BT::ConditionNode(name, config)
     {
-        pub_navigation = node->create_publisher<base_interfaces::msg::Navigation>("BT_navigation", 10);
+        RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Defend_Main_Condition Node is working");
     }
 
-    BT::PortsList Navigation_Node::providedPorts()
+    BT::PortsList Defend_Main_Condition::providedPorts()
     {
         BT::PortsList port_lists;
 
-        port_lists.insert(BT::InputPort<bool>("navigation_back"));
+        port_lists.insert(BT::InputPort<int>("armor_number"));
+        port_lists.insert(BT::InputPort<double>("armor_distance"));
 
+        port_lists.insert(BT::InputPort<int>("sentry_blood"));
+        port_lists.insert(BT::InputPort<int>("bullet_num"));
+        port_lists.insert(BT::InputPort<int>("time_left"));
+        port_lists.insert(BT::InputPort<int>("outpost_blood"));
+        port_lists.insert(BT::InputPort<bool>("navigation_status"));
+
+        port_lists.insert(BT::OutputPort<int>("bullet_rate"));
         return port_lists;
     }
 
-    BT::NodeStatus Navigation_on_Node::tick()
+    /**
+     * @brief 防御姿态下决定是否开启导航，将综合各种情况计算出当前弹频
+     * 
+     * @param armor_distance     最近装甲板距离
+     * @param armor_number       装甲板数量
+     * @param bullet_num         剩余子弹数量
+     * @param navigation_status  当前导航状态
+     * @param outpost_blood      前哨站血量
+     * @param sentry_blood       哨兵血量 
+     * 
+     * @return bullet_rate弹频
+    */
+    int Defend_Main_Condition::DefendCondition()
     {
-        auto navigation_back = getInput<bool>("navigation_back");
+        auto armor_number = getInput<int>("armor_number");
+        auto armor_distance = getInput<double>("armor_distance");
+        auto sentry_blood = getInput<int>("sentry_blood");
+        auto bullet_num = getInput<int>("bullet_num");
+        auto time_left = getInput<int>("time_left");
+        auto outpost_blood = getInput<int>("outpost_blood");
+        auto navigation_status = getInput<bool>("navigation_status");
 
-        if (!navigation_back)
+        if (!armor_number)
         {
             throw BT::RuntimeError("detect_node missing required input [message]:",
-                                   navigation_back.error());
+                                   armor_number.error());
         }
 
-        msg.back = navigation_back.value();
-        msg.navigation_continue = true;
-
-        pub_navigation->publish(msg);
-        return BT::NodeStatus::SUCCESS;
+        int bullet_rate = (int)(-10 + sqrt(time_left.value()) + 0.3 * sqrt(bullet_num.value()) -
+                                (armor_distance.value() / 100) * (armor_distance.value() / 100) * (armor_distance.value() / 100)); 
+        if(navigation_status)
+        {
+            if( bullet_rate*0.8 > 10)
+            {
+                bullet_rate = 20;
+            }
+            else
+            { 
+                bullet_rate = 20;
+            }
+        }
+        
+        if(bullet_rate > 20)
+        {
+            bullet_rate = 20;
+        }
+        setOutput("bullet_rate", bullet_rate);
+        return bullet_rate;
     }
 
-    BT::NodeStatus Navigation_off_Node::tick()
+    /**
+     * @brief Defend_Main_Condition判断函数，将弹频与阈值进行比较，小于阈值则返回SUCCESS，
+     *        开始导航，否则返回FAILURE，不开启导航。
+     * 
+     * @param bullet_rate    弹频
+    */
+    BT::NodeStatus  Defend_Main_Condition::tick()
     {
-        msg.navigation_continue = false;
-        msg.back = false;
-        pub_navigation->publish(msg);
-        return BT::NodeStatus::SUCCESS;
-    }
-
-    BT::NodeStatus Navigation_back_Node::tick()
-    {
-        msg.back = true;
-        msg.navigation_continue = true;
-        pub_navigation->publish(msg);
-        return BT::NodeStatus::SUCCESS;
+        int bullet_rate = DefendCondition();
+        if (bullet_rate > 10)
+        {
+            return BT::NodeStatus::SUCCESS;
+        }
+        else
+        {
+            return BT::NodeStatus::FAILURE;
+        }
     }
 }
-
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
@@ -461,23 +924,29 @@ int main(int argc, char **argv)
     factory.registerNodeType<wmj::No_Limit_Shoot_Node>("No_Limit_Shoot_Node", node);
     factory.registerNodeType<wmj::Navigation_on_Node>("Navigation_on_Node", node);
     factory.registerNodeType<wmj::Navigation_off_Node>("Navigation_off_Node", node);
-    factory.registerNodeType<wmj::Navigation_back_Node>("Navigation_back_Node", node);
+    // factory.registerNodeType<wmj::Navigation_back_Node>("Navigation_back_Node", node);
     factory.registerNodeType<wmj::Top_on_Node>("Top_on_Node", node);
     factory.registerNodeType<wmj::Top_off_Node>("Top_off_Node", node);
+    factory.registerNodeType<wmj::Scan_on_Node>("Scan_on_Node", node);
+    factory.registerNodeType<wmj::Scan_off_Node>("Scan_off_Node", node);
+
     factory.registerNodeType<wmj::Top_Condition>("Top_Condition");
     factory.registerNodeType<wmj::Navigation_Condition>("Navigation_Condition");
     factory.registerNodeType<wmj::Pose_Condition>("Pose_Condition");
-    
+    factory.registerNodeType<wmj::Back_Condition>("Back_Condition");
+    factory.registerNodeType<wmj::Scan_Condition>("Scan_Condition");
+    factory.registerNodeType<wmj::Attack_Main_Condition>("Attack_Main_Condition");
+    factory.registerNodeType<wmj::Defend_Main_Condition>("Defend_Main_Condition");
     
     auto tree = factory.createTreeFromFile(BT_XML);
 
     // 调试工具
-    BT::StdCoutLogger std_count_logger(tree);
+    // BT::StdCoutLogger std_count_logger(tree);
     //  BT::FileLogger logger_file(tree,"bt_trace.fbl");
     //  BT::MinitraceLogger logger_minitrace(tree,"bt_trace.json");
-    //  BT::PublisherZMQ publisher_zmq(tree);
-    BT::printTreeRecursively(tree.rootNode());
-    tree.subtrees[0]->blackboard->debugMessage();
+    BT::PublisherZMQ publisher_zmq(tree);
+    // BT::printTreeRecursively(tree.rootNode());
+    // tree.subtrees[0]->blackboard->debugMessage();
    
     rclcpp::Rate loop_rate(2);
     while (rclcpp::ok())

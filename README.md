@@ -1,8 +1,10 @@
-# 行为树 v1.2
+# 行为树 v1.3
 
 ~~**目前整棵树为Sequence结构，执行 `DataReadNode` , `Top_Node` , `Detect_Node` , `Navigation_Node`后处理回调.**~~
 
-**目前整颗树以拆分出一个个组成节点，包含八个动作节点和三个条件节点，可任意组合形成树**
+**v1.2调整： 目前整颗树以拆分出一个个组成节点，包含八个动作节点和三个条件节点，可任意组合形成树**
+
+**v1.3调整: 增加了Scan节点，目前包含十个动作节点和七个条件节点，整颗树的逻辑重新进行了调整**
 
 后期调试主要注意变量初始化问题
 
@@ -32,7 +34,7 @@
 Armors   Game   Navigation     
 
 //publisher
-BT_shooter  BT_top  BT_navigation
+BtAimer  BtTop  BtNavigation  BtScan
 
 //Armors    从自瞄节点获取，使用接口: Armors.msg
 struct Armor_msg
@@ -61,15 +63,18 @@ struct Navigation_msg
         bool navigation_back;  //是否需要返回巡逻区域
     };
 
-//BT_shooter   发向通讯节点,使用接口: Shooter.msg
+// BtAimer   发向通讯节点,使用接口: BtAimer.msg
 bullet_rate   // 射速
 
-//BT_top    发向通讯节点,使用接口: Top.msg
+// BtTop    发向通讯节点,使用接口: BtTop.msg
 top_status  // 小陀螺状态
 
-//BT_navigation  发向导航节点,使用接口: Navigation.msg
-bool navigation_back;  //是否返回巡逻区
-bool navigation_continue;  //导航是否继续
+// BtNavigation  发向导航节点,使用接口: BtNavigation.msg
+bool navigation_back;  // 是否返回巡逻区
+bool navigation_continue;  // 导航是否继续
+
+// BtScan  发向通讯节点，使用接口： BtScan.msg
+bool scan_on;  // 是否开启扫描
 ```
 
 
