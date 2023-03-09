@@ -316,8 +316,8 @@ namespace wmj
 
     protected:
         std::shared_ptr<rclcpp::Node> node_;
-        rclcpp::Publisher<base_interfaces::msg::BtScan>::SharedPtr ScanPub;
-        base_interfaces::msg::BtScan msg;
+        rclcpp::Publisher<base_interfaces::msg::ScanCtrlInfo>::SharedPtr ScanPub;
+        base_interfaces::msg::ScanCtrlInfo msg;
     };
 
     /**
