@@ -84,7 +84,7 @@ namespace wmj
     {
         navigation_msg.navigation_status = msg->navigation_status;
         navigation_msg.navigation_timestamp = msg->navigation_timestamp;
-        RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Navigation status msg get");
+        RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Navigation msg get");
     }
 
     // 定义接口
@@ -115,8 +115,8 @@ namespace wmj
         rclcpp::Rate loop_rate(10);   
         while (last_game_timestamp == game_msg.game_timestamp)
         {
-            // 三秒内未收到消息则使用默认数据
-            if (m_waitGameMsgTime > 3000 || game_msg_count == 0)
+            // 一秒内未收到消息则使用默认数据
+            if (m_waitGameMsgTime > 1000 || game_msg_count == 0)
             {
                 game_msg_count++;
                 readParam(BT_YAML, GAME);
@@ -133,7 +133,7 @@ namespace wmj
 
         while (last_armor_timestamp == armor_msg.armor_timestamp)
         {
-            if (m_waitArmorMsgTime > 3000 || armor_msg_count == 0)
+            if (m_waitArmorMsgTime > 1000 || armor_msg_count == 0)
             {
                 armor_msg_count++;
                 readParam(BT_YAML, ARMOR);
@@ -153,7 +153,7 @@ namespace wmj
 
         while (last_navigation_timestamp == navigation_msg.navigation_timestamp)
         {
-            if (m_waitNavigationMsgTime > 3000 || navigation_msg_count == 0)
+            if (m_waitNavigationMsgTime > 1000 || navigation_msg_count == 0)
             {
                 navigation_msg_count++;
                 readParam(BT_YAML, NAVIGATION);
@@ -618,8 +618,8 @@ namespace wmj
                                    armor_distance.error());
         }
         
-        // 若在八米内识别到装甲板，则开启自瞄无限制击打，否则开启扫描
-        if (armor_number.value() > 0 && armor_distance.value() < 8000)
+        // 若在七米内识别到装甲板，则开启自瞄无限制击打，否则开启扫描
+        if (armor_number.value() > 0 && armor_distance.value() < 700)
         {
             return false;
         }
@@ -767,10 +767,16 @@ namespace wmj
                                    armor_number.error());
         }
  
-        int bullet_rate = (int)(-10 + sqrt(time_left.value()) + 0.3 * sqrt(bullet_num.value()) -
-                                (armor_distance.value() / 100) * (armor_distance.value() / 100) * (armor_distance.value() / 100)); 
+        // int bullet_rate = (int)(-10 + sqrt(time_left.value()) + 0.3 * sqrt(bullet_num.value()) -
+        //                         (armor_distance.value() / 100) * (armor_distance.value() / 100) * (armor_distance.value() / 100)); 
 
-        std::cout << "bullet_rate:" << bullet_rate << std::endl;
+        int bullet_rate = (int)(15 - armor_distance.value()/100);
+        if(armor_distance == 0)
+        {
+            bullet_rate = 0;
+        }
+
+    
         
         // 导航状态对判断条件进行削减并对确定后条件进行增强
         if( navigation_status )
@@ -789,6 +795,7 @@ namespace wmj
         {
             bullet_rate = 20;
         }
+        std::cout << "attack_bullet_rate:" << bullet_rate << std::endl;
         setOutput("bullet_rate", bullet_rate);
         return bullet_rate;
     }
@@ -869,8 +876,14 @@ namespace wmj
                                    armor_number.error());
         }
 
-        int bullet_rate = (int)(-10 + sqrt(time_left.value()) + 0.3 * sqrt(bullet_num.value()) -
-                                (armor_distance.value() / 100) * (armor_distance.value() / 100) * (armor_distance.value() / 100)); 
+        // int bullet_rate = (int)(-10 + sqrt(time_left.value()) + 0.3 * sqrt(bullet_num.value()) -
+        //                         (armor_distance.value() / 100) * (armor_distance.value() / 100) * (armor_distance.value() / 100)); 
+
+        int bullet_rate = (int)(15 - armor_distance.value() / 100);
+        if(armor_distance == 0)
+        {
+            bullet_rate = 0;
+        }
         if(navigation_status)
         {
             if( bullet_rate*0.8 > 10)
@@ -879,7 +892,7 @@ namespace wmj
             }
             else
             { 
-                bullet_rate = 20;
+                bullet_rate = -1;
             }
         }
         
@@ -887,6 +900,7 @@ namespace wmj
         {
             bullet_rate = 20;
         }
+        std::cout << "defend_bullet_rate:" << bullet_rate << std::endl;
         setOutput("bullet_rate", bullet_rate);
         return bullet_rate;
     }
