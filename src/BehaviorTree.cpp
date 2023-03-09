@@ -372,7 +372,7 @@ namespace wmj
                          rclcpp::Node::SharedPtr node)
         : BT::SyncActionNode(name, config), node_(node)
     {
-        ScanPub = node->create_publisher<base_interfaces::msg::BtScan>("BtScan", 10);
+        ScanPub = node->create_publisher<base_interfaces::msg::ScanCtrlInfo>("ScanCtrlInfo", 10);
     }
 
     BT::PortsList Scan_Node::providedPorts()
@@ -386,7 +386,7 @@ namespace wmj
     */
     BT::NodeStatus Scan_on_Node::tick()
     {
-        msg.scan_on = true;
+        msg.scan_mode = 0;  //SCAN_360
         msg.scan_timestamp = wmj::now();
         ScanPub->publish(msg);
         return BT::NodeStatus::SUCCESS;
@@ -397,7 +397,7 @@ namespace wmj
     */
     BT::NodeStatus Scan_off_Node::tick()
     {
-        msg.scan_on = false;
+        msg.scan_mode = 4;  //SCAN_STOP
         msg.scan_timestamp = wmj::now();
         ScanPub->publish(msg);
         return BT::NodeStatus::SUCCESS;

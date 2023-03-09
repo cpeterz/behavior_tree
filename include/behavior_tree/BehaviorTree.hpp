@@ -3,7 +3,7 @@
 #include "base_interfaces/msg/armors.hpp"
 #include "base_interfaces/msg/bt_aimer.hpp"
 #include "base_interfaces/msg/bt_top.hpp"
-#include "base_interfaces/msg/bt_scan.hpp"
+#include "base_interfaces/msg/scan_ctrl_info.hpp"
 #include "base_interfaces/msg/bt_navigation.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "opencv2/opencv.hpp"
@@ -316,8 +316,8 @@ namespace wmj
 
     protected:
         std::shared_ptr<rclcpp::Node> node_;
-        rclcpp::Publisher<base_interfaces::msg::BtScan>::SharedPtr ScanPub;
-        base_interfaces::msg::BtScan msg;
+        rclcpp::Publisher<base_interfaces::msg::ScanCtrlInfo>::SharedPtr ScanPub;
+        base_interfaces::msg::ScanCtrlInfo msg;
     };
 
     /**
