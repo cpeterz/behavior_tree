@@ -770,31 +770,33 @@ namespace wmj
         // int bullet_rate = (int)(-10 + sqrt(time_left.value()) + 0.3 * sqrt(bullet_num.value()) -
         //                         (armor_distance.value() / 100) * (armor_distance.value() / 100) * (armor_distance.value() / 100)); 
 
-        int bullet_rate = (int)(15 - armor_distance.value()/100);
-        if(armor_distance == 0)
+        int bullet_rate = (int)(30 - 3*(armor_distance.value()/100));
+        if(armor_distance.value() == 0 || armor_number.value() == 0)
         {
-            bullet_rate = 0;
+            bullet_rate = -1;
         }
 
     
         
         // 导航状态对判断条件进行削减并对确定后条件进行增强
-        if( navigation_status )
-        {
-            if(bullet_rate*0.75 > 5)
-            {
-                bullet_rate = bullet_rate*1.25;
-            }
-            else
-            {
-                bullet_rate = -1;
-            }
-        }
+        // if( navigation_status )
+        // {
+        //     if(bullet_rate*0.75 > 5)
+        //     {
+        //         bullet_rate = bullet_rate*1.25;
+        //     }
+        //     else
+        //     {
+        //         bullet_rate = -1;
+        //     }
+        // }
         
         if(bullet_rate > 20)
         {
             bullet_rate = 20;
         }
+        
+        std::cout << "armor_number:" << armor_number.value() << "  " << "armor_distance:" << armor_distance.value() << std::endl;
         std::cout << "attack_bullet_rate:" << bullet_rate << std::endl;
         setOutput("bullet_rate", bullet_rate);
         return bullet_rate;
@@ -879,27 +881,28 @@ namespace wmj
         // int bullet_rate = (int)(-10 + sqrt(time_left.value()) + 0.3 * sqrt(bullet_num.value()) -
         //                         (armor_distance.value() / 100) * (armor_distance.value() / 100) * (armor_distance.value() / 100)); 
 
-        int bullet_rate = (int)(15 - armor_distance.value() / 100);
-        if(armor_distance == 0)
+        int bullet_rate = (int)(30 - 3*(armor_distance.value()/100));
+        if(armor_distance.value() == 0 || armor_number.value() == 0)
         {
-            bullet_rate = 0;
+            bullet_rate = -1;
         }
-        if(navigation_status)
-        {
-            if( bullet_rate*0.8 > 10)
-            {
-                bullet_rate = 20;
-            }
-            else
-            { 
-                bullet_rate = -1;
-            }
-        }
+        // if(navigation_status)
+        // {
+        //     if( bullet_rate*0.8 > 10)
+        //     {
+        //         bullet_rate = 20;
+        //     }
+        //     else
+        //     { 
+        //         bullet_rate = -1;
+        //     }
+        // }
         
         if(bullet_rate > 20)
         {
             bullet_rate = 20;
         }
+        std::cout << "armor_number:" << armor_number.value() << "  " << "armor_distance:" << armor_distance.value() << std::endl;
         std::cout << "defend_bullet_rate:" << bullet_rate << std::endl;
         setOutput("bullet_rate", bullet_rate);
         return bullet_rate;
