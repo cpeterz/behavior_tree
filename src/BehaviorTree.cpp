@@ -387,7 +387,7 @@ namespace wmj
     BT::NodeStatus Scan_on_Node::tick()
     {
         msg.scan_mode = 0;  //SCAN_360
-        msg.scan_timestamp = wmj::now();
+        // msg.scan_timestamp = wmj::now();
         ScanPub->publish(msg);
         return BT::NodeStatus::SUCCESS;
     }
@@ -398,7 +398,7 @@ namespace wmj
     BT::NodeStatus Scan_off_Node::tick()
     {
         msg.scan_mode = 4;  //SCAN_STOP
-        msg.scan_timestamp = wmj::now();
+        // msg.scan_timestamp = wmj::now();
         ScanPub->publish(msg);
         return BT::NodeStatus::SUCCESS;
     }

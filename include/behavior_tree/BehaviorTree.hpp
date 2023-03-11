@@ -3,6 +3,7 @@
 #include "base_interfaces/msg/armors.hpp"
 #include "base_interfaces/msg/bt_aimer.hpp"
 #include "base_interfaces/msg/bt_top.hpp"
+#include "base_interfaces/msg/bt_scan.hpp"
 #include "base_interfaces/msg/scan_ctrl_info.hpp"
 #include "base_interfaces/msg/bt_navigation.hpp"
 #include "rclcpp/rclcpp.hpp"
