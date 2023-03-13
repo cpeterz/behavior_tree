@@ -46,7 +46,7 @@ add_executable(behaviortree src/BehaviorTree.cpp)
 add_definitions(-DBT_XML="${CMAKE_CURRENT_LIST_DIR}/config/BehaviorTree2.xml")
 add_definitions(-DBT_YAML="${CMAKE_CURRENT_LIST_DIR}/config/BehaviorTree.yaml")
 
-target_link_libraries(behaviortree BT::behaviortree_cpp ${OpenCV_LIBS})
+target_link_libraries(behaviortree behaviortree_cpp ${OpenCV_LIBS})
 
 ament_target_dependencies(behaviortree 
   rclcpp
