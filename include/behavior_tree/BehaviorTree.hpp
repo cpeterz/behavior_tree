@@ -13,6 +13,7 @@
 // #include "behaviortree_cpp/loggers/bt_file_logger.h"
 // #include "behaviortree_cpp/loggers/bt_minitrace_logger.h"
 #include "behaviortree_cpp/loggers/bt_zmq_publisher.h"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "libbase/common.h"
 
 using std::placeholders::_1;
@@ -34,22 +35,32 @@ namespace wmj
     */
     struct Navigation_msg
     {
-        double navigation_timestamp; // 导航事件戳
-        bool navigation_status;      // 当前导航状态，true表示正在移动
-        bool navigation_back;        // 是否返回出发点
+        double navigation_timestamp;         // 导航事件戳
+        // int navigation_status;            // 当前导航状态，true表示正在移动
+        int navigation_position;            // 当前目标位置
+        double navigation_cur_position_x;    // 当前导航位置
+        double navigation_cur_position_y;
+        double navigation_cur_position_z;
+        double navigation_cur_orientation_x;
+        double navigation_cur_orientation_y;
+        double navigation_cur_orientation_z;
+        double navigation_cur_orientation_w;
     };
 
     /**
-     * @brief 导航信息结构体
+     * @brief 比赛信息结构体
     */
     struct Game_msg
     {
-        int outpost_blood;  // 前哨站血量
-        int sentry_blood;   // 哨兵血量
-        int bullet_num;        // 剩余子弹数目
-        int time_left;      // 剩余比赛时间
-        double game_timestamp; // 比赛状况事件戳
-        bool manual_top;       // 是否手动开启小陀螺
+        int outpost_blood;        // 前哨站血量
+        int sentry_blood;         // 哨兵血量
+        int bullet_num;           // 剩余子弹数目
+        int time_left;            // 剩余比赛时间
+        double game_timestamp;    // 比赛状况事件戳
+        bool manual_top;          // 是否手动开启小陀螺
+        bool game_start;          // 比赛是否开始
+        int m_alive;              // 我方存活机器人
+        int enemy_alive;          // 敌方存活机器人
     };
 
     /**
@@ -59,8 +70,8 @@ namespace wmj
     {
         ALL,        // 所有参数
         ARMOR,      // 装甲板参数
-        NAVIGATION, // 导航参数
-        GAME        // 比赛状况参数
+        GAME,       // 比赛状况参数
+        NAV         // 导航参数
     };
 
     // 共用ROS节点，负责收发消息
@@ -80,24 +91,24 @@ namespace wmj
         DataReadNode(const std::string &name, const BT::NodeConfig &config,
                      rclcpp::Node::SharedPtr node);
 
-        BT::NodeStatus tick() override; // tick函数，主运行函数
+        BT::NodeStatus tick() override;         // tick函数，主运行函数
         static BT::PortsList providedPorts();
         void readParam(std::string path, Read_Param mode);
 
     private:
-        std::shared_ptr<rclcpp::Node> node_; // 信息发布收取节点
+        std::shared_ptr<rclcpp::Node> node_;     // 信息发布收取节点
 
-        Armor_msg armor_msg;           // 装甲板信息
-        Navigation_msg navigation_msg; // 导航信息
-        Game_msg game_msg;             // 比赛状况信息
+        Armor_msg armor_msg;                     // 装甲板信息
+        Navigation_msg navigation_msg;           // 导航信息
+        Game_msg game_msg;                       // 比赛状况信息
 
-        double last_armor_timestamp = 0; // 记录上次消息的事件戳
+        double last_armor_timestamp = 0;         // 记录上次消息的事件戳
         double last_navigation_timestamp = 0;
         double last_game_timestamp = 0;
-        int armor_msg_count = 0; // 记录当前消息延误次数
+        int armor_msg_count = 0;                 // 记录当前消息延误次数
         int game_msg_count = 0;
         int navigation_msg_count = 0;
-        // int m_waitNum;       // 等待消息次数
+        // int m_waitNum;                        // 等待消息次数
         double m_waitGameMsgTime = 0;            // 等待比赛状况消息时间
         double m_waitNavigationMsgTime = 0;      // 等待导航信息消息时间
         double m_waitArmorMsgTime = 0;           // 等待装甲板消息时间
@@ -254,7 +265,7 @@ namespace wmj
     /**
      * @brief 开启导航节点
      * 
-     * @param navigation_back 是否返航
+     * @param position 目标位置
     */
     class Navigation_on_Node : public Navigation_Node
     {
@@ -268,6 +279,14 @@ namespace wmj
 
     private:
         BT::NodeStatus tick() override;
+        /**
+         * @brief 获取位置信息
+         * 
+         * @param position 位置
+         * 
+         * @return PoseStamped 目标位置，四元数类型
+        */
+        geometry_msgs::msg::PoseStamped GetPositionInfo(int position);
     };
 
     /**
@@ -287,22 +306,22 @@ namespace wmj
         BT::NodeStatus tick() override;
     };
 
-    /**
-     * @brief 返航节点
-    */
-    class Navigation_back_Node : public Navigation_Node
-    {
-    public:
-        Navigation_back_Node(const std::string &name, const BT::NodeConfig &config,
-                             rclcpp::Node::SharedPtr node)
-            : Navigation_Node::Navigation_Node(name, config, node)
-        {
-            RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Navigation_back_Node is working");
-        }
+    // /**
+    //  * @brief 返航节点
+    // */
+    // class Navigation_back_Node : public Navigation_Node
+    // {
+    // public:
+    //     Navigation_back_Node(const std::string &name, const BT::NodeConfig &config,
+    //                          rclcpp::Node::SharedPtr node)
+    //         : Navigation_Node::Navigation_Node(name, config, node)
+    //     {
+    //         RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Navigation_back_Node is working");
+    //     }
 
-    private:
-        BT::NodeStatus tick() override;
-    };
+    // private:
+    //     BT::NodeStatus tick() override;
+    // };
 
     /**
      * @brief 扫描基类
@@ -352,6 +371,28 @@ namespace wmj
         }
 
     private:
+        BT::NodeStatus tick() override;
+    };
+
+    /**
+     * @brief 比赛开始条件节点
+    */
+    class Start_Condition : public BT::ConditionNode
+    {
+    public:
+        Start_Condition(const std::string &name, const BT::NodeConfig &config);
+        static BT::PortsList providedPorts();
+
+    private:
+
+    /**
+     * @brief 获取比赛状态
+     * 
+     * @param game_start 比赛是否开启
+     * 
+     * @return 是否开启主循环
+    */
+        bool GetGameStatus(); // 获取比赛状态,true则证明比赛开始，开启主循环
         BT::NodeStatus tick() override;
     };
 
@@ -411,6 +452,17 @@ namespace wmj
     public:
         Defend_Main_Condition(const std::string &name, const BT::NodeConfig &config);
         static BT::PortsList providedPorts();
+        /**
+         * @brief 获取位置信息
+         * 
+         * @param position 位置
+         * 
+         * @return PoseStamped 目标位置，四元数类型
+        */
+        geometry_msgs::msg::PoseStamped GetPosition(int position);
+        int m_last_position = -1;     // 我的上一个目标地点
+        int total_blood = 0;          // 总共恢复血量
+        int last_blood = 600;           // 上一时刻哨兵血量
 
     private:
         /**

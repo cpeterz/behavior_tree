@@ -13,32 +13,37 @@ namespace wmj
             fs["init_armor_distance"] >> this->armor_msg.armor_distance;
             fs["init_armor_timestamp"] >> this->armor_msg.armor_timestamp;
             fs["init_navigation_timestamp"] >> this->navigation_msg.navigation_timestamp;
-            fs["init_navigation_status "] >> this->navigation_msg.navigation_status;
-            fs["init_navigation_back"] >> this->navigation_msg.navigation_back;
             fs["init_outpost_blood"] >> this->game_msg.outpost_blood;
             fs["init_sentry_blood"] >> this->game_msg.sentry_blood;
             fs["init_bullet_num"] >> this->game_msg.bullet_num;
             fs["init_time_left"] >> this->game_msg.time_left;
             fs["init_game_timestamp"] >> this->game_msg.game_timestamp;
             fs["init_manual_top"] >> this->game_msg.manual_top;
+            fs["init_game_start"] >> this->game_msg.game_start;
+            fs["init_m_alive"] >> this->game_msg.m_alive;
+            fs["init_enemy_alive"] >> this->game_msg.enemy_alive;
+            fs["init_position"] >> this->navigation_msg.navigation_position;
             break;
         case ARMOR:
-            RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-armor msg");
             fs["armor_number"] >> this->armor_msg.armor_number;
             fs["armor_distance"] >> this->armor_msg.armor_distance;
             fs["outpost_blood"] >> this->game_msg.outpost_blood;
             fs["sentry_blood"] >> this->game_msg.sentry_blood;
             fs["bullet_num"] >> this->game_msg.bullet_num;
             fs["time_left"] >> this->game_msg.time_left;
+            RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-armor msg");
             break;
-        case NAVIGATION: 
+        case NAV: 
+            fs["position"] >> this->navigation_msg.navigation_position;
             RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-navigation msg");
-            fs["navigation_status"] >> this->navigation_msg.navigation_status;
             break;
         case GAME:
-            RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-game msg");
             fs["manual_top"] >> this->game_msg.manual_top;
-            fs["navigation_back"] >> this->navigation_msg.navigation_back;
+            fs["game_start"] >> this->game_msg.game_start;
+            fs["m_alive"] >> this->game_msg.m_alive;
+            fs["enemy_alive"] >> this->game_msg.enemy_alive;
+            fs["position"] >> this->navigation_msg.navigation_position;
+            RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-game msg");
             break;     
         }
     }
@@ -54,8 +59,8 @@ namespace wmj
             "Armors", 10, std::bind(&DataReadNode::armor_call_back, this, _1));
         sub_game = node->create_subscription<base_interfaces::msg::Game>(
             "Game", 10, std::bind(&DataReadNode::game_call_back, this, _1));
-        sub_navigation = node->create_subscription<base_interfaces::msg::Navigation>(
-            "Navigation", 10, std::bind(&DataReadNode::navigation_call_back, this, _1));
+        // sub_navigation = node->create_subscription<base_interfaces::msg::Navigation>(
+        //     "Navigation", 10, std::bind(&DataReadNode::navigation_call_back, this, _1));
     }
 
     void DataReadNode::armor_call_back(const base_interfaces::msg::Armors::SharedPtr msg)
@@ -76,13 +81,20 @@ namespace wmj
         game_msg.outpost_blood = msg->outpost_blood;
         game_msg.time_left = msg->time_left;
         game_msg.sentry_blood = msg->sentry_blood;
+        game_msg.game_start = msg->game_start;
         RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Game msg get");
     }
 
     // 订阅当前导航状态
     void DataReadNode::navigation_call_back(const base_interfaces::msg::Navigation::SharedPtr msg)
     {
-        navigation_msg.navigation_status = msg->navigation_status;
+        navigation_msg.navigation_cur_position_x = msg->cur_position.pose.position.x;
+        navigation_msg.navigation_cur_position_y = msg->cur_position.pose.position.y;
+        navigation_msg.navigation_cur_position_z = msg->cur_position.pose.position.z;
+        navigation_msg.navigation_cur_orientation_x = msg->cur_position.pose.orientation.x;
+        navigation_msg.navigation_cur_orientation_y = msg->cur_position.pose.orientation.y;
+        navigation_msg.navigation_cur_orientation_z = msg->cur_position.pose.orientation.z;
+        navigation_msg.navigation_cur_orientation_w = msg->cur_position.pose.orientation.w;
         navigation_msg.navigation_timestamp = msg->navigation_timestamp;
         RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Navigation msg get");
     }
@@ -96,17 +108,26 @@ namespace wmj
         ports_list.insert(BT::OutputPort<double>("armor_distance"));
         ports_list.insert(BT::OutputPort<double>("armor_timestamp"));
 
-        ports_list.insert(BT::OutputPort<double>("navigation_timestamp"));
-        ports_list.insert(BT::OutputPort<bool>("navigation_status"));
-
         ports_list.insert(BT::OutputPort<int>("outpost_blood"));
         ports_list.insert(BT::OutputPort<int>("sentry_blood"));
         ports_list.insert(BT::OutputPort<int>("bullet_num"));
         ports_list.insert(BT::OutputPort<int>("time_left"));
         ports_list.insert(BT::OutputPort<double>("game_timestamp"));
         ports_list.insert(BT::OutputPort<bool>("manual_top"));
+        ports_list.insert(BT::OutputPort<bool>("game_start"));
+        ports_list.insert(BT::OutputPort<int>("m_alive"));
+        ports_list.insert(BT::OutputPort<int>("enemy_alive"));
 
-        ports_list.insert(BT::OutputPort<bool>("navigation_back"));
+        ports_list.insert(BT::OutputPort<double>("navigation_cur_position_x"));
+        ports_list.insert(BT::OutputPort<double>("navigation_cur_position_y"));
+        ports_list.insert(BT::OutputPort<double>("navigation_cur_position_z"));
+        ports_list.insert(BT::OutputPort<double>("navigation_cur_orientation_x"));
+        ports_list.insert(BT::OutputPort<double>("navigation_cur_orientation_y"));
+        ports_list.insert(BT::OutputPort<double>("navigation_cur_orientation_z"));
+        ports_list.insert(BT::OutputPort<double>("navigation_cur_orientation_w"));
+        ports_list.insert(BT::OutputPort<double>("navigation_timestamp"));
+        ports_list.insert(BT::OutputPort<int>("position"));
+
         return ports_list;
     }
 
@@ -137,6 +158,7 @@ namespace wmj
             {
                 armor_msg_count++;
                 readParam(BT_YAML, ARMOR);
+                setOutput("position", navigation_msg.navigation_position);
                 break;
             }
             loop_rate.sleep();    // 等待 100ms
@@ -156,7 +178,7 @@ namespace wmj
             if (m_waitNavigationMsgTime > 1000 || navigation_msg_count == 0)
             {
                 navigation_msg_count++;
-                readParam(BT_YAML, NAVIGATION);
+                readParam(BT_YAML, NAV);
                 break;
             }
             loop_rate.sleep();    // 等待 100ms
@@ -165,9 +187,8 @@ namespace wmj
         }
         if (last_navigation_timestamp != navigation_msg.navigation_timestamp)
         {
+            navigation_msg.navigation_position = -1;     // 收到导航消息则不动
             m_waitNavigationMsgTime = 0;
-            // 导航信息更新中则不自动返回巡逻区
-            navigation_msg.navigation_back = false;
         }
         
         last_armor_timestamp = armor_msg.armor_timestamp;
@@ -177,10 +198,6 @@ namespace wmj
         setOutput("armor_number", armor_msg.armor_number);
         setOutput("armor_distance", armor_msg.armor_distance);
         setOutput("armor_timestamp", armor_msg.armor_timestamp);
-        
-        setOutput("navigation_timestamp", navigation_msg.navigation_timestamp);
-        setOutput("navigation_status", navigation_msg.navigation_status);
-        setOutput("navigation_back", navigation_msg.navigation_back);
 
         setOutput("outpost_blood", game_msg.outpost_blood);
         setOutput("sentry_blood", game_msg.sentry_blood);
@@ -188,7 +205,19 @@ namespace wmj
         setOutput("time_left", game_msg.time_left);
         setOutput("game_timestamp", game_msg.game_timestamp);
         setOutput("manual_top", game_msg.manual_top);
+        setOutput("game_start", game_msg.game_start);
+        setOutput("m_alive", game_msg.m_alive);
+        setOutput("enemy_alive", game_msg.enemy_alive);
 
+        setOutput("navigation_cur_position_x", navigation_msg.navigation_cur_position_x);
+        setOutput("navigation_cur_position_y", navigation_msg.navigation_cur_position_y);
+        setOutput("navigation_cur_position_z", navigation_msg.navigation_cur_position_z);
+        setOutput("navigation_cur_orientation_x", navigation_msg.navigation_cur_orientation_x);
+        setOutput("navigation_cur_orientation_y", navigation_msg.navigation_cur_orientation_y);
+        setOutput("navigation_cur_orientation_z", navigation_msg.navigation_cur_orientation_z);
+        setOutput("navigation_cur_orientation_w", navigation_msg.navigation_cur_orientation_w);
+        setOutput("navigation_timestamp", navigation_msg.navigation_timestamp);
+        setOutput("position", navigation_msg.navigation_position);
         return BT::NodeStatus::SUCCESS;
     }
 
@@ -309,7 +338,7 @@ namespace wmj
     {
         BT::PortsList port_lists;
 
-        port_lists.insert(BT::InputPort<bool>("navigation_back"));
+        port_lists.insert(BT::InputPort<int>("position"));
 
         return port_lists;
     }
@@ -317,24 +346,71 @@ namespace wmj
     /**
      * @brief 开启导航节点
      * 
-     * @param navigation_back 是否返航
+     * @param position 选择目标位置
     */
     BT::NodeStatus Navigation_on_Node::tick()
     {
-        auto navigation_back = getInput<bool>("navigation_back");
-
-        if (!navigation_back)
+        auto position = getInput<int>("position");
+        if (!position)
         {
-            throw BT::RuntimeError("detect_node missing required input [message]:",
-                                   navigation_back.error());
+            throw BT::RuntimeError("navigation_node missing required input [message]:",
+                                   position.error());
         }
 
-        msg.navigation_back = navigation_back.value();
+        geometry_msgs::msg::PoseStamped m_goal_position;
+        m_goal_position = GetPositionInfo(position.value());
+        msg.goal_position = m_goal_position;
         msg.navigation_continue = true;
         msg.bt_navigation_timestamp = wmj::now();
 
         navigationPub->publish(msg);
         return BT::NodeStatus::SUCCESS;
+    }
+
+    /**
+     * @brief 获取位置信息
+     * 
+     * @param position 位置
+     * 
+     * @return PoseStamped 目标位置，四元数类型
+    */
+    geometry_msgs::msg::PoseStamped Navigation_on_Node::GetPositionInfo(int position)
+    {
+        cv::FileStorage fs(BT_YAML, cv::FileStorage::READ);
+        geometry_msgs::msg::PoseStamped goal_position;
+        switch (position)
+        {
+            case 0:          // 出发点
+                fs["start_position_x"] >> goal_position.pose.position.x;
+                fs["start_position_y"] >> goal_position.pose.position.y;
+                fs["start_position_z"] >> goal_position.pose.position.z;
+                fs["start_orientation_x"] >> goal_position.pose.orientation.x;
+                fs["start_orientation_y"] >> goal_position.pose.orientation.y;
+                fs["start_orientation_z"] >> goal_position.pose.orientation.z;
+                fs["start_orientation_w"] >> goal_position.pose.orientation.w;
+                break;
+            case 1:        // 回血点
+                fs["resume_position_x"] >> goal_position.pose.position.x;
+                fs["resume_position_y"] >> goal_position.pose.position.y;
+                fs["resume_position_z"] >> goal_position.pose.position.z;
+                fs["resume_orientation_x"] >> goal_position.pose.orientation.x;
+                fs["resume_orientation_y"] >> goal_position.pose.orientation.y;
+                fs["resume_orientation_z"] >> goal_position.pose.orientation.z;
+                fs["resume_orientation_w"] >> goal_position.pose.orientation.w;
+                break;
+            case 2:        // 增益点
+                fs["gain_position_x"] >> goal_position.pose.position.x;
+                fs["gain_position_y"] >> goal_position.pose.position.y;
+                fs["gain_position_z"] >> goal_position.pose.position.z;
+                fs["gain_orientation_x"] >> goal_position.pose.orientation.x;
+                fs["gain_orientation_y"] >> goal_position.pose.orientation.y;
+                fs["gain_orientation_z"] >> goal_position.pose.orientation.z;
+                fs["gain_orientation_w"] >> goal_position.pose.orientation.w;
+                break;
+        }
+        goal_position.header.frame_id = "map";
+        goal_position.header.stamp.nanosec = wmj::now();
+        return goal_position;
     }
     
     /**
@@ -343,8 +419,16 @@ namespace wmj
     BT::NodeStatus Navigation_off_Node::tick()
     {
         msg.navigation_continue = false;
-        msg.navigation_back = false;
         msg.bt_navigation_timestamp = wmj::now();
+        msg.goal_position.pose.position.x = 0;
+        msg.goal_position.pose.position.y = 0;
+        msg.goal_position.pose.position.z = 0;
+        msg.goal_position.pose.orientation.x = 0;
+        msg.goal_position.pose.orientation.y = 0;
+        msg.goal_position.pose.orientation.z = 0;
+        msg.goal_position.pose.orientation.w = 0;
+        msg.goal_position.header.frame_id = "map";
+        msg.goal_position.header.stamp.sec = wmj::now();
 
         navigationPub->publish(msg);
         return BT::NodeStatus::SUCCESS;
@@ -353,15 +437,14 @@ namespace wmj
     /**
      * @brief 返航节点
     */
-    BT::NodeStatus Navigation_back_Node::tick()
-    {
-        msg.navigation_back = true;
-        msg.navigation_continue = true;
-        msg.bt_navigation_timestamp = wmj::now();
+    // BT::NodeStatus Navigation_back_Node::tick()
+    // {
+    //     msg.navigation_continue = true;
+    //     msg.bt_navigation_timestamp = wmj::now();
         
-        navigationPub->publish(msg);
-        return BT::NodeStatus::SUCCESS;
-    }
+    //     navigationPub->publish(msg);
+    //     return BT::NodeStatus::SUCCESS;
+    // }
 
 //------------------------------------------------------ Scan_Node ---------------------------------------------------------------    
     
@@ -407,6 +490,63 @@ namespace wmj
 // -------------------------------------------               Condition               --------------------------------------------------------
 // ------------------------------------------------------------------------------------------------------------------------------------------
 
+//------------------------------------------------------ Start_Condition      ---------------------------------------------------------------
+    /**
+     * @brief 比赛开始条件节点
+    */
+    Start_Condition::Start_Condition(const std::string &name, const BT::NodeConfig &config)
+        : BT::ConditionNode(name, config)
+    {
+        RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Start_Condition Node is working");
+    }
+
+    BT::PortsList Start_Condition::providedPorts()
+    {
+        BT::PortsList port_lists;
+        port_lists.insert(BT::InputPort<bool>("game_start"));
+        return port_lists;
+    }
+    
+    /**
+     * @brief 获取比赛状态,true则证明比赛开始，开启主循环
+     * 
+     * @param game_start  比赛是否开始
+     * 
+     * @return 是否开启主循环
+     */ 
+    bool Start_Condition::GetGameStatus()
+    {
+        auto game_start = getInput<bool>("game_start");
+        if(!game_start)
+        {
+            throw BT::RuntimeError("Game missing required input [message]:",
+                                   game_start.error());
+        }
+        if(game_start.value())
+        {
+            return true;         // 比赛开始返回true
+        }
+        else
+        {
+            return false;        // 开启空转         
+        }
+    }
+    
+    /**
+     * @brief 根据导航状态判断开启导航或是扫描
+     */
+    BT::NodeStatus Start_Condition::tick()
+    {
+        bool game_start = GetGameStatus();
+        if(game_start)        
+        {
+            return BT::NodeStatus::SUCCESS;          // 开启空转
+        }
+        else
+        {
+            return BT::NodeStatus::FAILURE; 
+        }
+    }
 //------------------------------------------------------ Navigation_Condition ---------------------------------------------------------------    
     /**
      * @brief 导航条件节点，根据导航状态判断开启导航或者扫描
@@ -420,7 +560,6 @@ namespace wmj
     BT::PortsList Navigation_Condition::providedPorts()
     {
         BT::PortsList port_lists;
-        port_lists.insert(BT::InputPort<bool>("navigation_status"));
         return port_lists;
     }
     
@@ -433,21 +572,7 @@ namespace wmj
      */ 
     bool Navigation_Condition::GetNavigationStatus()
     {
-        auto navigation_status = getInput<bool>("navigation_status");
-        if(!navigation_status)
-        {
-            throw BT::RuntimeError("navigation_condition missing required input [message]:",
-                                   navigation_status.error());
-        }
-
-        if(navigation_status.value())
-        {
-            return true;
-        }
-        else
-        {
             return false;
-        }
     }
     
     /**
@@ -618,8 +743,9 @@ namespace wmj
                                    armor_distance.error());
         }
         
-        // 若在七米内识别到装甲板，则开启自瞄无限制击打，否则开启扫描
-        if (armor_number.value() > 0 && armor_distance.value() < 700)
+        
+        // 若在六米内识别到装甲板，则开启自瞄无限制击打，否则开启扫描
+        if (armor_number.value() > 0 && armor_distance.value() < 600)
         {
             return false;
         }
@@ -661,6 +787,7 @@ namespace wmj
         BT::PortsList port_lists;
         port_lists.insert(BT::InputPort<double>("armor_distance"));
         port_lists.insert(BT::InputPort<int>("armor_number"));
+        port_lists.insert(BT::OutputPort<int>("position"));
         return port_lists;
     }
     
@@ -670,7 +797,7 @@ namespace wmj
      * @param armor_distance   最近装甲板距离
      * @param armor_number     识别到的装甲板数量
      * 
-     * @return 是否返航
+     * @return 是否执行返航导航
     */ 
     bool Back_Condition::GetBackStatus()
     {
@@ -683,13 +810,17 @@ namespace wmj
                                    armor_distance.error());
         }
         
-        // 若在两米内识别到装甲板，则开启自瞄无限制击打，否则返航
-        if (armor_number.value() > 0 && armor_distance.value() < 2000)
+        // 若在三米内识别到装甲板，则开启自瞄无限制击打，否则返回补血点
+        if (armor_number.value() > 0 && armor_distance.value() < 300)
         {
+            int position = 0;
+            setOutput("position", position);
             return false;
         }
         else
         {
+            int position = -1;
+            setOutput("position", position);
             return true;
         }
     }
@@ -732,7 +863,6 @@ namespace wmj
         port_lists.insert(BT::InputPort<int>("bullet_num"));
         port_lists.insert(BT::InputPort<int>("time_left"));
         port_lists.insert(BT::InputPort<int>("outpost_blood"));
-        port_lists.insert(BT::InputPort<bool>("navigation_status"));
 
         port_lists.insert(BT::OutputPort<int>("bullet_rate"));
         return port_lists;
@@ -744,7 +874,6 @@ namespace wmj
      * @param armor_distance     最近装甲板距离
      * @param armor_number       装甲板数量
      * @param bullet_num         剩余子弹数量
-     * @param navigation_status  当前导航状态
      * @param outpost_blood      前哨站血量
      * @param sentry_blood       哨兵血量 
      * 
@@ -758,7 +887,6 @@ namespace wmj
         auto bullet_num = getInput<int>("bullet_num");
         auto time_left = getInput<int>("time_left");
         auto outpost_blood = getInput<int>("outpost_blood");
-        auto navigation_status = getInput<bool>("navigation_status");
 
 
         if (!armor_number)
@@ -844,9 +972,19 @@ namespace wmj
         port_lists.insert(BT::InputPort<int>("bullet_num"));
         port_lists.insert(BT::InputPort<int>("time_left"));
         port_lists.insert(BT::InputPort<int>("outpost_blood"));
-        port_lists.insert(BT::InputPort<bool>("navigation_status"));
+        port_lists.insert(BT::InputPort<int>("m_alive"));
+        port_lists.insert(BT::InputPort<int>("enemy_alive"));
+
+        port_lists.insert(BT::InputPort<double>("navigation_cur_position_x"));
+        port_lists.insert(BT::InputPort<double>("navigation_cur_position_y"));
+        port_lists.insert(BT::InputPort<double>("navigation_cur_position_z"));
+        port_lists.insert(BT::InputPort<double>("navigation_cur_orientation_x"));
+        port_lists.insert(BT::InputPort<double>("navigation_cur_orientation_y"));
+        port_lists.insert(BT::InputPort<double>("navigation_cur_orientation_z"));
+        port_lists.insert(BT::InputPort<double>("navigation_cur_orientation_w"));
 
         port_lists.insert(BT::OutputPort<int>("bullet_rate"));
+        port_lists.insert(BT::OutputPort<int>("position"));
         return port_lists;
     }
 
@@ -856,11 +994,11 @@ namespace wmj
      * @param armor_distance     最近装甲板距离
      * @param armor_number       装甲板数量
      * @param bullet_num         剩余子弹数量
-     * @param navigation_status  当前导航状态
      * @param outpost_blood      前哨站血量
      * @param sentry_blood       哨兵血量 
+     * @param navigation_xxxx    当前位置（四元数）
      * 
-     * @return bullet_rate弹频
+     * @return position 导航目标位置 -1 为不开启导航
     */
     int Defend_Main_Condition::DefendCondition()
     {
@@ -870,54 +1008,180 @@ namespace wmj
         auto bullet_num = getInput<int>("bullet_num");
         auto time_left = getInput<int>("time_left");
         auto outpost_blood = getInput<int>("outpost_blood");
-        auto navigation_status = getInput<bool>("navigation_status");
-
+        auto m_alive = getInput<int>("m_alive");
+        auto enemy_alive = getInput<int>("enemy_alive");
+        
         if (!armor_number)
         {
             throw BT::RuntimeError("detect_node missing required input [message]:",
                                    armor_number.error());
         }
 
-        // int bullet_rate = (int)(-10 + sqrt(time_left.value()) + 0.3 * sqrt(bullet_num.value()) -
-        //                         (armor_distance.value() / 100) * (armor_distance.value() / 100) * (armor_distance.value() / 100)); 
+        int m_position = -1;  // 默认导航不开启
+        int blood_diff = sentry_blood.value() - last_blood;  
+        // 假设恢复血量时没有被击打，则累加血量增加量
+        if(blood_diff > 0)
+        {
+            total_blood += blood_diff;
+        }
+        last_blood = sentry_blood.value();
 
-        int bullet_rate = (int)(30 - 3*(armor_distance.value()/100));
-        if(armor_distance.value() == 0 || armor_number.value() == 0)
+        if((time_left.value() < 250 && time_left.value() > 210) || (time_left.value() < 160 && time_left.value() > 120) || (time_left.value() < 70 && time_left.value() > 30))
+        {   
+            m_position = 2;         // 假设每次增益点都在增益点开启30s内解决,则规定时间内前往增益点抢夺
+        }        
+        std::cout << "total_blood:" << total_blood << std::endl;
+        if(sentry_blood.value() < 300)
+        {
+            if(time_left.value() > 80 && total_blood < 550)
+            {
+                m_position = 1;        // 血量低于250且在补血时间内，且补血点还有大量资源可补血，则返回补血点
+            }
+            else
+            {
+                m_position = 0;       // 若不在补血时间内，或者可用资源不足，则返回出发点
+            }
+        }
+        if( (enemy_alive.value() < 1 ) && m_position != 1 )
+        {
+            m_position = 0;        // 我方陷入人数劣势时，若无需去往补血点，则返回出发点
+        }
+        if( m_alive.value() > enemy_alive.value() && m_position != 1 && total_blood <= 300 && time_left.value() > 60)
+        {
+            m_position = 2;        // 我方人数优势时，若无需前往补血点，补血点还有大量资源可补血，则可前往进攻点
+        }
+        if( m_last_position == 1 && total_blood < 550 && time_left.value() > 80 && sentry_blood.value() < 550)
+        {
+            m_position = 1;         // 在补血点补满血量后才会离开
+        }
+        std::cout << "init_position:" << m_position << std::endl;
+        // 判断目标位置和当前位置的差距
+        if(m_position != -1)
+        {
+            geometry_msgs::msg::PoseStamped goal_position = GetPosition(m_position);
+            double goal_pose[7];
+            double m_pose[7];
+            goal_pose[0] = goal_position.pose.position.x;
+            goal_pose[1] = goal_position.pose.position.y;
+            goal_pose[2] = goal_position.pose.position.z;
+            goal_pose[3] = goal_position.pose.orientation.x;
+            goal_pose[4] = goal_position.pose.orientation.y;
+            goal_pose[5] = goal_position.pose.orientation.z;
+            goal_pose[6] = goal_position.pose.orientation.w;
+            m_pose[0] = getInput<double>("navigation_cur_position_x").value();
+            m_pose[1] = getInput<double>("navigation_cur_position_y").value();
+            m_pose[2] = getInput<double>("navigation_cur_position_z").value();
+            m_pose[3] = getInput<double>("navigation_cur_orientation_x").value();
+            m_pose[4] = getInput<double>("navigation_cur_orientation_y").value();
+            m_pose[5] = getInput<double>("navigation_cur_orientation_z").value();
+            m_pose[6] = getInput<double>("navigation_cur_orientation_w").value();
+            for( int i = 0 ; i < 7 ; i++)
+            {
+                if( ( m_pose[i] - goal_pose[i]) > 0.1 )           // 这个地方要改，给一确定值,防止抖动
+                {
+                    break;
+                }
+                if( i == 6 )
+                {
+                   m_position = -1;        // 各个位置数据差别不大，则认为此时已到达目的地
+                }
+            }
+        }
+        // 计算弹频
+        int bullet_rate = (int)(30 - pow((armor_distance.value()/100),2));   // 3 米 20 频 , 4米 15 频 ，5 米 5 频 
+        
+        if(armor_distance.value() == 0 || armor_number.value() == 0)      // 没有识别到则设置为-1
         {
             bullet_rate = -1;
         }
-        // if(navigation_status)
-        // {
-        //     if( bullet_rate*0.8 > 10)
-        //     {
-        //         bullet_rate = 20;
-        //     }
-        //     else
-        //     { 
-        //         bullet_rate = -1;
-        //     }
-        // }
         
         if(bullet_rate > 20)
         {
             bullet_rate = 20;
         }
-        std::cout << "armor_number:" << armor_number.value() << "  " << "armor_distance:" << armor_distance.value() << std::endl;
+
+        // 综合处理
+        if(m_position == 0 || m_position == 1)   // 回血或返回出发点较为紧急，三米内击打
+        {
+           if( bullet_rate == 20)
+           {
+                m_position = -1;
+           }
+        }
+        else if( m_position == 2)                // 抢夺增益点时四米内击打
+        {
+            if( bullet_rate >= 14)
+            {
+                m_position = -1;
+            }
+        }
+        // std::cout << "armor_number:" << armor_number.value() << "  " << "armor_distance:" << armor_distance.value() << std::endl;
         std::cout << "defend_bullet_rate:" << bullet_rate << std::endl;
+        std::cout << "position:" << m_position << std::endl;
+        
         setOutput("bullet_rate", bullet_rate);
-        return bullet_rate;
+        setOutput("position", m_position);
+        return m_position;
     }
 
     /**
-     * @brief Defend_Main_Condition判断函数，将弹频与阈值进行比较，小于阈值则返回SUCCESS，
-     *        开始导航，否则返回FAILURE，不开启导航。
+     * @brief 获取位置信息
      * 
-     * @param bullet_rate    弹频
+     * @param position 位置
+     * 
+     * @return PoseStamped 目标位置，四元数类型
+    */
+    geometry_msgs::msg::PoseStamped Defend_Main_Condition::GetPosition(int position)
+    {
+        cv::FileStorage fs(BT_YAML, cv::FileStorage::READ);
+        geometry_msgs::msg::PoseStamped goal_position;
+        switch (position)
+        {
+            case 0:          // 出发点
+            
+                fs["start_position_x"] >> goal_position.pose.position.x;
+                fs["start_position_y"] >> goal_position.pose.position.y;
+                fs["start_position_z"] >> goal_position.pose.position.z;
+                fs["start_orientation_x"] >> goal_position.pose.orientation.x;
+                fs["start_orientation_y"] >> goal_position.pose.orientation.y;
+                fs["start_orientation_z"] >> goal_position.pose.orientation.z;
+                fs["start_orientation_w"] >> goal_position.pose.orientation.w;
+                break;
+            case 1:        // 回血点
+            
+                fs["resume_position_x"] >> goal_position.pose.position.x;
+                fs["resume_position_y"] >> goal_position.pose.position.y;
+                fs["resume_position_z"] >> goal_position.pose.position.z;
+                fs["resume_orientation_x"] >> goal_position.pose.orientation.x;
+                fs["resume_orientation_y"] >> goal_position.pose.orientation.y;
+                fs["resume_orientation_z"] >> goal_position.pose.orientation.z;
+                fs["resume_orientation_w"] >> goal_position.pose.orientation.w;
+                break;
+            case 2:        // 增益点
+            
+                fs["gain_position_x"] >> goal_position.pose.position.x;
+                fs["gain_position_y"] >> goal_position.pose.position.y;
+                fs["gain_position_z"] >> goal_position.pose.position.z;
+                fs["gain_orientation_x"] >> goal_position.pose.orientation.x;
+                fs["gain_orientation_y"] >> goal_position.pose.orientation.y;
+                fs["gain_orientation_z"] >> goal_position.pose.orientation.z;
+                fs["gain_orientation_w"] >> goal_position.pose.orientation.w;
+                break;
+        }              
+        goal_position.header.frame_id = "map";
+        goal_position.header.stamp.nanosec = wmj::now();
+        return goal_position;
+    }
+
+    /**
+     * @brief Defend_Main_Condition判断函数，根据position的值进行判断
+     * 
+     * @param position    导航目标位置
     */
     BT::NodeStatus  Defend_Main_Condition::tick()
     {
-        int bullet_rate = DefendCondition();
-        if (bullet_rate > 10)
+        int position = DefendCondition();
+        if (position != -1)
         {
             return BT::NodeStatus::SUCCESS;
         }
@@ -954,6 +1218,7 @@ int main(int argc, char **argv)
     factory.registerNodeType<wmj::Scan_Condition>("Scan_Condition");
     factory.registerNodeType<wmj::Attack_Main_Condition>("Attack_Main_Condition");
     factory.registerNodeType<wmj::Defend_Main_Condition>("Defend_Main_Condition");
+    factory.registerNodeType<wmj::Start_Condition>("Start_Condition");
     
     auto tree = factory.createTreeFromFile(BT_XML);
 

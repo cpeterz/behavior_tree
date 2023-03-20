@@ -1,0 +1,203 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="MainTree">
+    <!-- ////////// -->
+    <BehaviorTree ID="MainTree">
+        <Sequence>
+            <Action ID="DataReadNode" armor_distance="{armor_distance}" armor_number="{armor_number}" armor_timestamp="{armor_timestamp}" bullet_num="{bullet_num}" enemy_alive="{enemy_alive}" game_start="{game_start}" game_timestamp="{game_timestamp}" m_alive="{m_alive}" manual_top="{manual_top}" name="dataread" navigation_cur_orientation_w="{navigation_cur_orientation_w}" navigation_cur_orientation_x="{navigation_cur_orientation_x}" navigation_cur_orientation_y="{navigation_cur_orientation_y}" navigation_cur_orientation_z="{navigation_cur_orientation_z}" navigation_cur_position_x="{navigation_cur_position_x}" navigation_cur_position_y="{navigation_cur_position_y}" navigation_cur_position_z="{navigation_cur_position_z}" navigation_timestamp="{navigation_timestamp}" outpost_blood="{outpost_blood}" position="{position}" sentry_blood="{sentry_blood}" time_left="{time_left}"/>
+            <WhileDoElse>
+                <Condition ID="Start_Condition" game_start="{game_start}"/>
+                <Sequence name="No_Start_Sequence">
+                    <Action ID="Top_off_Node" top_status="{top_status}"/>
+                    <Action ID="Navigation_off_Node"/>
+                    <Action ID="Scan_off_Node"/>
+                    <Action ID="No_Shoot_Node"/>
+                </Sequence>
+                <Fallback name="Start_Fallback">
+                    <Repeat num_cycles="2">
+                        <Sequence name="Main_Sequence">
+                            <WhileDoElse name="Top_Choose">
+                                <Condition ID="Top_Condition" manual_top="{manual_top}" outpost_blood="{outpost_blood}"/>
+                                <Action ID="Top_on_Node" top_status="{top_status}"/>
+                                <Action ID="Top_off_Node" top_status="{top_status}"/>
+                            </WhileDoElse>
+                            <WhileDoElse name="Pose_Choose">
+                                <Condition ID="Pose_Condition" top_status="{top_status}"/>
+                                <Sequence name="Defend_Sequence">
+                                    <WhileDoElse name="Navigation_Choose">
+                                        <Condition ID="Defend_Main_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" enemy_alive="{enemy_alive}" m_alive="{m_alive}" navigation_cur_orientation_w="{navigation_cur_orientation_w}" navigation_cur_orientation_x="{navigation_cur_orientation_x}" navigation_cur_orientation_y="{navigation_cur_orientation_y}" navigation_cur_orientation_z="{navigation_cur_orientation_z}" navigation_cur_position_x="{navigation_cur_position_x}" navigation_cur_position_y="{navigation_cur_position_y}" navigation_cur_position_z="{navigation_cur_position_z}" outpost_blood="{outpost_blood}" position="{position}" sentry_blood="{sentry_blood}" time_left="{time_left}"/>
+                                        <Sequence name="Navigation_on_Sequence">
+                                            <Action ID="Navigation_on_Node" position="{position}"/>
+                                            <Action ID="Scan_off_Node"/>
+                                            <Action ID="No_Shoot_Node"/>
+                                        </Sequence>
+                                        <Sequence name="Navigation_off_Sequence">
+                                            <Action ID="Navigation_off_Node"/>
+                                            <WhileDoElse name="Scan_Choose">
+                                                <Condition ID="Scan_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}"/>
+                                                <Sequence name="Scan_on_Sequence">
+                                                    <Action ID="Scan_on_Node"/>
+                                                    <Action ID="No_Shoot_Node"/>
+                                                </Sequence>
+                                                <Sequence name="Scan_off_Sequence">
+                                                    <Action ID="No_Limit_Shoot_Node"/>
+                                                    <Action ID="Scan_off_Node"/>
+                                                </Sequence>
+                                            </WhileDoElse>
+                                        </Sequence>
+                                    </WhileDoElse>
+                                </Sequence>
+                                <Sequence name="Attack_Sequence">
+                                    <WhileDoElse name="Shoot_Choose">
+                                        <Condition ID="Attack_Main_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" outpost_blood="{outpost_blood}" time_left="{time_left}"/>
+                                        <Sequence name="Shoot_on_Sequence">
+                                            <Action ID="Limit_Shoot_Node" bullet_rate="{bullet_rate}"/>
+                                            <Action ID="Navigation_off_Node"/>
+                                            <Action ID="Scan_off_Node"/>
+                                        </Sequence>
+                                        <Sequence name="Shoot_off_Sequence">
+                                            <Action ID="No_Shoot_Node"/>
+                                            <WhileDoElse>
+                                                <Condition ID="Navigation_Condition"/>
+                                                <Sequence name="Navigation_on_Sequence">
+                                                    <Action ID="Navigation_on_Node" position="{position}"/>
+                                                    <Action ID="Scan_off_Node"/>
+                                                </Sequence>
+                                                <Sequence name="Navigation_off_Node">
+                                                    <Action ID="Navigation_off_Node"/>
+                                                    <Action ID="Scan_on_Node"/>
+                                                </Sequence>
+                                            </WhileDoElse>
+                                        </Sequence>
+                                    </WhileDoElse>
+                                </Sequence>
+                            </WhileDoElse>
+                        </Sequence>
+                    </Repeat>
+                    <ForceSuccess>
+                        <Sequence name="Default_Sequence">
+                            <Action ID="Scan_off_Node"/>
+                            <Action ID="Top_on_Node" top_status="{top_status}"/>
+                            <WhileDoElse name="Back_Choose">
+                                <Condition ID="Back_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}" position="{position}"/>
+                                <Sequence name="Navigation_Back_Sequence">
+                                    <Action ID="Navigation_on_Node" position="{position}"/>
+                                    <Action ID="No_Shoot_Node"/>
+                                </Sequence>
+                                <Sequence name="Shoot_Sequence">
+                                    <Action ID="No_Limit_Shoot_Node"/>
+                                    <Action ID="Navigation_off_Node"/>
+                                </Sequence>
+                            </WhileDoElse>
+                        </Sequence>
+                    </ForceSuccess>
+                </Fallback>
+            </WhileDoElse>
+        </Sequence>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <TreeNodesModel>
+        <Condition ID="Attack_Main_Condition">
+            <input_port default="armor_distance" name="armor_distance"/>
+            <input_port default="armor_number" name="armor_number"/>
+            <input_port default="bullet_num" name="bullet_num"/>
+            <output_port default="bullet_rate" name="bullet_rate"/>
+            <input_port default="outpost_blood" name="outpost_blood"/>
+            <input_port default="time_left" name="time_left"/>
+        </Condition>
+        <Condition ID="Back_Condition">
+            <input_port name="armor_distance"/>
+            <input_port name="armor_number"/>
+            <output_port name="position"/>
+        </Condition>
+        <Action ID="DataReadNode">
+            <output_port name="armor_distance"/>
+            <output_port name="armor_number"/>
+            <output_port name="armor_timestamp"/>
+            <output_port name="bullet_num"/>
+            <output_port name="enemy_alive"/>
+            <output_port name="game_start"/>
+            <output_port name="game_timestamp"/>
+            <output_port name="m_alive"/>
+            <output_port name="manual_top"/>
+            <output_port name="navigation_cur_orientation_w"/>
+            <output_port name="navigation_cur_orientation_x"/>
+            <output_port name="navigation_cur_orientation_y"/>
+            <output_port name="navigation_cur_orientation_z"/>
+            <output_port name="navigation_cur_position_x"/>
+            <output_port name="navigation_cur_position_y"/>
+            <output_port name="navigation_cur_position_z"/>
+            <output_port name="navigation_timestamp"/>
+            <output_port name="outpost_blood"/>
+            <output_port name="position"/>
+            <output_port name="sentry_blood"/>
+            <output_port name="time_left"/>
+        </Action>
+        <Condition ID="Defend_Main_Condition">
+            <input_port name="armor_distance"/>
+            <input_port name="armor_number"/>
+            <input_port name="bullet_num"/>
+            <output_port name="bullet_rate"/>
+            <input_port name="enemy_alive"/>
+            <input_port name="m_alive"/>
+            <input_port name="navigation_cur_orientation_w"/>
+            <input_port name="navigation_cur_orientation_x"/>
+            <input_port name="navigation_cur_orientation_y"/>
+            <input_port name="navigation_cur_orientation_z"/>
+            <input_port name="navigation_cur_position_x"/>
+            <input_port name="navigation_cur_position_y"/>
+            <input_port name="navigation_cur_position_z"/>
+            <input_port name="outpost_blood"/>
+            <output_port name="position"/>
+            <input_port name="sentry_blood"/>
+            <input_port name="time_left"/>
+        </Condition>
+        <Control ID="Detect_Condition">
+            <input_port name="armor_distance"/>
+            <input_port name="armor_number"/>
+            <output_port name="bullet_num"/>
+            <input_port name="bullet_rate"/>
+            <input_port name="navigation_status"/>
+            <input_port name="outpost_blood"/>
+            <input_port name="sentry_blood"/>
+            <input_port name="time_left"/>
+            <input_port name="top_status"/>
+        </Control>
+        <Action ID="Limit_Shoot_Node">
+            <input_port name="bullet_rate"/>
+        </Action>
+        <Condition ID="Navigation_Condition"/>
+        <Action ID="Navigation_back_Node"/>
+        <Action ID="Navigation_off_Node"/>
+        <Action ID="Navigation_on_Node">
+            <input_port name="position"/>
+        </Action>
+        <Action ID="No_Limit_Shoot_Node"/>
+        <Action ID="No_Shoot_Node"/>
+        <Condition ID="Pose_Condition">
+            <input_port name="top_status"/>
+        </Condition>
+        <Condition ID="Scan_Condition">
+            <input_port default="armor_distance" name="armor_distance"/>
+            <input_port default="armor_number" name="armor_number"/>
+        </Condition>
+        <Action ID="Scan_off_Node"/>
+        <Action ID="Scan_on_Node"/>
+        <Condition ID="Shoot_Condition">
+            <input_port name="armor_number"/>
+        </Condition>
+        <Condition ID="Start_Condition">
+            <input_port name="game_start"/>
+        </Condition>
+        <Condition ID="Top_Condition">
+            <input_port name="manual_top"/>
+            <input_port name="outpost_blood"/>
+        </Condition>
+        <Action ID="Top_off_Node">
+            <output_port name="top_status"/>
+        </Action>
+        <Action ID="Top_on_Node">
+            <output_port name="top_status"/>
+        </Action>
+    </TreeNodesModel>
+    <!-- ////////// -->
+</root>

@@ -2,24 +2,54 @@
 ---   
 #初始化数据
 init_armor_number: 0             # 识别到的装甲板的数量
-init_armor_distance : 10.         # 最近的装甲板的距离
+init_armor_distance : 10.        # 最近的装甲板的距离
 init_armor_timestamp : 0.        # 装甲板时间戳
 init_navigation_timestamp : 0.   # 导航事件戳
-init_navigation_status : 0       # 当前导航状态,true表示正在移动
-init_navigation_back : 0         # 是否返回出发点
+init_navigation_status : -1      # 导航状态,默认不处于任何一个地方
 init_outpost_blood : 1000        # 前哨站血量
-init_sentry_blood : 1000         # 哨兵血量
+init_sentry_blood : 600          # 哨兵血量
 init_bullet_num : 700            # 剩余子弹数目
 init_time_left : 300             # 剩余比赛时间
 init_game_timestamp : 0.         # 比赛状况事件戳
-init_manual_top : 0          # 是否手动开启小陀螺
+init_manual_top : 1              # 是否手动开启小陀螺
+init_game_start : 1              # 默认比赛已经开启,true则已开始
+init_m_alive : 2                 # 我方存活机器人
+init_enemy_alive : 2             # 敌方存活机器人
+init_position : -1               # 初始化不移动
 #默认数据
-armor_number: 1  
+armor_number: 1   
 armor_distance : 1. 
 outpost_blood : 1000 
-sentry_blood : 1000
+sentry_blood : 600
 time_left : 500 
 bullet_num : 700 
-manual_top : 0  
-navigation_back : 0 
-navigation_status : 0     
+manual_top : 1   
+game_start: 1
+m_alive : 2
+enemy_alive : 2
+position : 1                     # 收不到导航消息默认返回补血点
+#出发点位置
+start_position_x : 0
+start_position_y : 0
+start_position_z : 0
+start_orientation_x : 0
+start_orientation_y : 0
+start_orientation_z : 0
+start_orientation_w : 0
+#补血点位置
+resume_position_x : 1
+resume_position_y : 1
+resume_position_z : 1
+resume_orientation_x : 1
+resume_orientation_y : 1
+resume_orientation_z : 1
+resume_orientation_w : 1
+#增益点位置
+gain_position_x : 2
+gain_position_y : 2
+gain_position_z : 2
+gain_orientation_x : 2
+gain_orientation_y : 2
+gain_orientation_z : 2
+gain_orientation_w : 2
+
