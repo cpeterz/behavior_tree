@@ -37,7 +37,7 @@ namespace wmj
     {
         double navigation_timestamp;         // 导航事件戳
         // int navigation_status;            // 当前导航状态，true表示正在移动
-        int navigation_position;            // 当前目标位置
+        int navigation_position;             // 当前目标位置
         double navigation_cur_position_x;    // 当前导航位置
         double navigation_cur_position_y;
         double navigation_cur_position_z;
@@ -260,6 +260,19 @@ namespace wmj
         rclcpp::Publisher<base_interfaces::msg::BtNavigation>::SharedPtr navigationPub; // 导航信息发布者
         std::shared_ptr<rclcpp::Node> node_;
         base_interfaces::msg::BtNavigation msg;
+        geometry_msgs::msg::PoseStamped startPosition;
+        geometry_msgs::msg::PoseStamped resumePosition;
+        geometry_msgs::msg::PoseStamped gainPosition;
+        int last_position = 0;                          
+    private:
+        /**
+         * @brief 获取位置信息
+         * 
+         * @param position 位置
+         * 
+         * @return PoseStamped 目标位置，四元数类型
+        */
+        geometry_msgs::msg::PoseStamped GetPositionInfo(int position);
     };
 
     /**
@@ -279,14 +292,6 @@ namespace wmj
 
     private:
         BT::NodeStatus tick() override;
-        /**
-         * @brief 获取位置信息
-         * 
-         * @param position 位置
-         * 
-         * @return PoseStamped 目标位置，四元数类型
-        */
-        geometry_msgs::msg::PoseStamped GetPositionInfo(int position);
     };
 
     /**
@@ -452,17 +457,20 @@ namespace wmj
     public:
         Defend_Main_Condition(const std::string &name, const BT::NodeConfig &config);
         static BT::PortsList providedPorts();
-        /**
-         * @brief 获取位置信息
-         * 
-         * @param position 位置
-         * 
-         * @return PoseStamped 目标位置，四元数类型
-        */
-        geometry_msgs::msg::PoseStamped GetPosition(int position);
-        int m_last_position = -1;     // 我的上一个目标地点
-        int total_blood = 0;          // 总共恢复血量
+        // /**
+        //  * @brief 获取位置信息
+        //  * 
+        //  * @param position 位置
+        //  * 
+        //  * @return PoseStamped 目标位置，四元数类型
+        // */
+        // geometry_msgs::msg::PoseStamped GetPosition(double goal_position[3][2]);
+        int m_last_position = -1;       // 我的上一个目标地点
+        int total_blood = 0;            // 总共恢复血量
         int last_blood = 600;           // 上一时刻哨兵血量
+        int first_arrive = 0;           // 是否第一次到达的标志位，与防抖相适应,1为已到达，0为未到达
+        double goal_position[3][2];     // 储存目的地x,y坐标
+
 
     private:
         /**

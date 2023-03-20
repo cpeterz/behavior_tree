@@ -332,6 +332,9 @@ namespace wmj
         : BT::SyncActionNode(name, config), node_(node)
     {
         navigationPub = node->create_publisher<base_interfaces::msg::BtNavigation>("BT_navigation", 10);
+        startPosition = GetPositionInfo(0);
+        resumePosition = GetPositionInfo(1);
+        gainPosition = GetPositionInfo(2);
     }
     
     BT::PortsList Navigation_Node::providedPorts()
@@ -339,42 +342,18 @@ namespace wmj
         BT::PortsList port_lists;
 
         port_lists.insert(BT::InputPort<int>("position"));
-
+        
         return port_lists;
     }
 
-    /**
-     * @brief 开启导航节点
-     * 
-     * @param position 选择目标位置
-    */
-    BT::NodeStatus Navigation_on_Node::tick()
-    {
-        auto position = getInput<int>("position");
-        if (!position)
-        {
-            throw BT::RuntimeError("navigation_node missing required input [message]:",
-                                   position.error());
-        }
-
-        geometry_msgs::msg::PoseStamped m_goal_position;
-        m_goal_position = GetPositionInfo(position.value());
-        msg.goal_position = m_goal_position;
-        msg.navigation_continue = true;
-        msg.bt_navigation_timestamp = wmj::now();
-
-        navigationPub->publish(msg);
-        return BT::NodeStatus::SUCCESS;
-    }
-
-    /**
+     /**
      * @brief 获取位置信息
      * 
      * @param position 位置
      * 
      * @return PoseStamped 目标位置，四元数类型
     */
-    geometry_msgs::msg::PoseStamped Navigation_on_Node::GetPositionInfo(int position)
+    geometry_msgs::msg::PoseStamped Navigation_Node::GetPositionInfo(int position)
     {
         cv::FileStorage fs(BT_YAML, cv::FileStorage::READ);
         geometry_msgs::msg::PoseStamped goal_position;
@@ -412,13 +391,55 @@ namespace wmj
         goal_position.header.stamp.nanosec = wmj::now();
         return goal_position;
     }
+
+    /**
+     * @brief 开启导航节点
+     * 
+     * @param position 选择目标位置
+    */
+    BT::NodeStatus Navigation_on_Node::tick()
+    {
+        auto position = getInput<int>("position");
+        if (!position)
+        {
+            throw BT::RuntimeError("navigation_node missing required input [message]:",
+                                   position.error());
+        }
+
+        switch (position.value())
+        {
+        case 0:
+            msg.goal_position = startPosition;
+            break;
+        case 1:
+            msg.goal_position = resumePosition;
+            break;
+        case 2:
+            msg.goal_position = gainPosition;
+            break;
+        }
+
+        if(position.value() == last_position)
+        {
+            msg.navigation_continue = 2;                          // 与上一帧位置相同，则continue置为 2
+        }
+        else
+        {
+            msg.navigation_continue = 1;                          // 与上一帧位置不同，则continue置为 1                        
+        }
+        
+        msg.bt_navigation_timestamp = wmj::now();
+        last_position = position.value();
+        navigationPub->publish(msg);
+        return BT::NodeStatus::SUCCESS;
+    }
     
     /**
      * @brief 导航关闭节点
     */
     BT::NodeStatus Navigation_off_Node::tick()
     {
-        msg.navigation_continue = false;
+        msg.navigation_continue = 0;
         msg.bt_navigation_timestamp = wmj::now();
         msg.goal_position.pose.position.x = 0;
         msg.goal_position.pose.position.y = 0;
@@ -959,6 +980,13 @@ namespace wmj
         : BT::ConditionNode(name, config)
     {
         RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Defend_Main_Condition Node is working");
+        cv::FileStorage fs(BT_YAML, cv::FileStorage::READ);
+        fs["start_position_x"] >> goal_position[0][0];
+        fs["start_position_y"] >> goal_position[0][1];
+        fs["resume_position_x"] >> goal_position[1][0];
+        fs["resume_position_y"] >> goal_position[1][1];
+        fs["gain_position_x"] >> goal_position[2][0];
+        fs["gain_position_y"] >> goal_position[2][1];
     }
 
     BT::PortsList Defend_Main_Condition::providedPorts()
@@ -1026,67 +1054,78 @@ namespace wmj
         }
         last_blood = sentry_blood.value();
 
-        if((time_left.value() < 250 && time_left.value() > 210) || (time_left.value() < 160 && time_left.value() > 120) || (time_left.value() < 70 && time_left.value() > 30))
+        if((time_left.value() < 250 && time_left.value() > 210) || (time_left.value() < 160 && time_left.value() > 120))
         {   
-            m_position = 2;         // 假设每次增益点都在增益点开启30s内解决,则规定时间内前往增益点抢夺
+            m_position = 2;         // 假设每次增益点都在增益点开启30s内解决,则规定时间内前往增益点抢夺，最后一波不会前往
         }        
         std::cout << "total_blood:" << total_blood << std::endl;
-        if(sentry_blood.value() < 300)
+        
+        if(sentry_blood.value() < 350)
         {
             if(time_left.value() > 80 && total_blood < 550)
             {
-                m_position = 1;        // 血量低于250且在补血时间内，且补血点还有大量资源可补血，则返回补血点
+                m_position = 1;        // 血量低于350且在补血时间内，且补血点还有大量资源可补血，则返回补血点
             }
             else
             {
-                m_position = 0;       // 若不在补血时间内，或者可用资源不足，则返回出发点
+                m_position = 0;        // 若不在补血时间内，或者可用资源不足，则返回出发点
             }
         }
+
         if( (enemy_alive.value() < 1 ) && m_position != 1 )
         {
-            m_position = 0;        // 我方陷入人数劣势时，若无需去往补血点，则返回出发点
+            m_position = 0;            // 我方陷入人数劣势时，若无需去往补血点，则返回出发点
         }
+
         if( m_alive.value() > enemy_alive.value() && m_position != 1 && total_blood <= 300 && time_left.value() > 60)
         {
-            m_position = 2;        // 我方人数优势时，若无需前往补血点，补血点还有大量资源可补血，则可前往进攻点
+            m_position = 2;            // 我方人数优势时，若无需前往补血点，补血点还有大量资源可补血，则可前往进攻点
         }
-        if( m_last_position == 1 && total_blood < 550 && time_left.value() > 80 && sentry_blood.value() < 550)
+
+        if( time_left.value() < 120 && time_left.value() > 60 && sentry_blood.value() < 600 && total_blood < 600)
         {
-            m_position = 1;         // 在补血点补满血量后才会离开
+            m_position = 1;            // 补血前一分钟，如果补血点还有血并且自身状态未满，则前往补血点
         }
+
+        if( m_last_position == 1 && total_blood < 600 && time_left.value() > 80 && sentry_blood.value() < 600)
+        {
+            m_position = 1;            // 在补血点补满血量后才会离开
+        }
+
         std::cout << "init_position:" << m_position << std::endl;
+        
         // 判断目标位置和当前位置的差距
-        if(m_position != -1)
+        if(m_position != -1)           // 如果我当前需要运动并且已经抵达目标位置
         {
-            geometry_msgs::msg::PoseStamped goal_position = GetPosition(m_position);
-            double goal_pose[7];
-            double m_pose[7];
-            goal_pose[0] = goal_position.pose.position.x;
-            goal_pose[1] = goal_position.pose.position.y;
-            goal_pose[2] = goal_position.pose.position.z;
-            goal_pose[3] = goal_position.pose.orientation.x;
-            goal_pose[4] = goal_position.pose.orientation.y;
-            goal_pose[5] = goal_position.pose.orientation.z;
-            goal_pose[6] = goal_position.pose.orientation.w;
+            double goal_pose[2];
+            double m_pose[2];
+            goal_pose[0] = goal_position[m_position][0];
+            goal_pose[1] = goal_position[m_position][1];
             m_pose[0] = getInput<double>("navigation_cur_position_x").value();
             m_pose[1] = getInput<double>("navigation_cur_position_y").value();
-            m_pose[2] = getInput<double>("navigation_cur_position_z").value();
-            m_pose[3] = getInput<double>("navigation_cur_orientation_x").value();
-            m_pose[4] = getInput<double>("navigation_cur_orientation_y").value();
-            m_pose[5] = getInput<double>("navigation_cur_orientation_z").value();
-            m_pose[6] = getInput<double>("navigation_cur_orientation_w").value();
-            for( int i = 0 ; i < 7 ; i++)
+            for( int i = 0 ; i < 2 ; i++)
             {
-                if( ( m_pose[i] - goal_pose[i]) > 0.1 )           // 这个地方要改，给一确定值,防止抖动
+                int j = 0;
+                if( first_arrive == 0 && (m_pose[i] - goal_pose[i]) < 0.01)           // 未到达目标位置的情况下，1cm内认为已到目标位置，first_arrive置零
                 {
+                    j++;
+                }
+                if( first_arrive == 1 && (m_pose[i] - goal_pose[i]) > 0.1 )           // 已到达目标位置的情况下，10cm内认为在原本位置,否则不在目标位置，first_arrive置零
+                {
+                    first_arrive = 0;
                     break;
                 }
-                if( i == 6 )
+                if( i == 1 )
                 {
                    m_position = -1;        // 各个位置数据差别不大，则认为此时已到达目的地
                 }
+                if( j == 1 )
+                {
+                    first_arrive = 1;       // 当前位置与目标位置相距极小，则认为已到达，则此时进入防抖动循环         
+                }
             }
         }
+
         // 计算弹频
         int bullet_rate = (int)(30 - pow((armor_distance.value()/100),2));   // 3 米 20 频 , 4米 15 频 ，5 米 5 频 
         
@@ -1122,55 +1161,6 @@ namespace wmj
         setOutput("bullet_rate", bullet_rate);
         setOutput("position", m_position);
         return m_position;
-    }
-
-    /**
-     * @brief 获取位置信息
-     * 
-     * @param position 位置
-     * 
-     * @return PoseStamped 目标位置，四元数类型
-    */
-    geometry_msgs::msg::PoseStamped Defend_Main_Condition::GetPosition(int position)
-    {
-        cv::FileStorage fs(BT_YAML, cv::FileStorage::READ);
-        geometry_msgs::msg::PoseStamped goal_position;
-        switch (position)
-        {
-            case 0:          // 出发点
-            
-                fs["start_position_x"] >> goal_position.pose.position.x;
-                fs["start_position_y"] >> goal_position.pose.position.y;
-                fs["start_position_z"] >> goal_position.pose.position.z;
-                fs["start_orientation_x"] >> goal_position.pose.orientation.x;
-                fs["start_orientation_y"] >> goal_position.pose.orientation.y;
-                fs["start_orientation_z"] >> goal_position.pose.orientation.z;
-                fs["start_orientation_w"] >> goal_position.pose.orientation.w;
-                break;
-            case 1:        // 回血点
-            
-                fs["resume_position_x"] >> goal_position.pose.position.x;
-                fs["resume_position_y"] >> goal_position.pose.position.y;
-                fs["resume_position_z"] >> goal_position.pose.position.z;
-                fs["resume_orientation_x"] >> goal_position.pose.orientation.x;
-                fs["resume_orientation_y"] >> goal_position.pose.orientation.y;
-                fs["resume_orientation_z"] >> goal_position.pose.orientation.z;
-                fs["resume_orientation_w"] >> goal_position.pose.orientation.w;
-                break;
-            case 2:        // 增益点
-            
-                fs["gain_position_x"] >> goal_position.pose.position.x;
-                fs["gain_position_y"] >> goal_position.pose.position.y;
-                fs["gain_position_z"] >> goal_position.pose.position.z;
-                fs["gain_orientation_x"] >> goal_position.pose.orientation.x;
-                fs["gain_orientation_y"] >> goal_position.pose.orientation.y;
-                fs["gain_orientation_z"] >> goal_position.pose.orientation.z;
-                fs["gain_orientation_w"] >> goal_position.pose.orientation.w;
-                break;
-        }              
-        goal_position.header.frame_id = "map";
-        goal_position.header.stamp.nanosec = wmj::now();
-        return goal_position;
     }
 
     /**
