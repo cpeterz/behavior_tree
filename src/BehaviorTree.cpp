@@ -1138,7 +1138,7 @@ namespace wmj
             m_pose[1] = getInput<double>("navigation_cur_position_y").value();
             if( if_arrive == 0 )       // 如果当前未到达位置
             {         
-                if( fabs(m_pose[0] - goal_pose[0]) < 0.01 && fabs(m_pose[1] - goal_pose[1]) < 0.01)            // 未到达目标位置的情况下，1cm内认为已到目标位置，first_arrive置1
+                if( fabs(m_pose[0] - goal_pose[0]) < 0.3 && fabs(m_pose[1] - goal_pose[1]) < 0.3)            // 未到达目标位置的情况下，1cm内认为已到目标位置，first_arrive置1
                 {
                     if_arrive = 1;
                     m_position = -1;
@@ -1146,7 +1146,7 @@ namespace wmj
             }
             else                       // 如果已到达指定位置
             {
-                if( fabs(m_pose[0] - goal_pose[0]) < 0.1 && fabs(m_pose[1] - goal_pose[1]) < 0.1)               // 未到达目标位置的情况下，1cm内认为已到目标位置，first_arrive置1
+                if( fabs(m_pose[0] - goal_pose[0]) < 0.6 && fabs(m_pose[1] - goal_pose[1]) < 0.6)               // 未到达目标位置的情况下，1cm内认为已到目标位置，first_arrive置1
                 {
                     m_position = -1;
                 }
