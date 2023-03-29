@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<root main_tree_to_execute="MainTree">
+<root BTCPP_format="4">
     <!-- ////////// -->
     <BehaviorTree ID="MainTree">
         <Sequence>
@@ -20,13 +20,13 @@
                                 <Sequence name="Navigation_off_Sequence">
                                     <Action ID="Navigation_off_Node"/>
                                     <WhileDoElse name="Scan_Choose">
-                                        <Condition ID="Scan_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}"/>
+                                        <Condition ID="Scan_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" time_left="{time_left}"/>
                                         <Sequence name="Scan_on_Sequence">
                                             <Action ID="Scan_on_Node"/>
                                             <Action ID="No_Shoot_Node"/>
                                         </Sequence>
                                         <Sequence name="Scan_off_Sequence">
-                                            <Action ID="No_Limit_Shoot_Node"/>
+                                            <Action ID="Limit_Shoot_Node" bullet_rate="{bullet_rate}"/>
                                             <Action ID="Scan_off_Node"/>
                                         </Sequence>
                                     </WhileDoElse>
@@ -146,6 +146,9 @@
         <Condition ID="Scan_Condition">
             <input_port default="armor_distance" name="armor_distance"/>
             <input_port default="armor_number" name="armor_number"/>
+            <input_port name="bullet_num"/>
+            <inout_port name="bullet_rate"/>
+            <input_port name="time_left"/>
         </Condition>
         <Action ID="Scan_off_Node"/>
         <Action ID="Scan_on_Node"/>

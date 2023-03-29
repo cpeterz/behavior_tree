@@ -52,4 +52,11 @@ gain_orientation_x : 2
 gain_orientation_y : 2
 gain_orientation_z : 2
 gain_orientation_w : 2
-
+#视界点位置
+view_position_x : 3
+view_position_y : 3
+view_position_z : 3
+view_orientation_x : 3
+view_orientation_y : 3
+view_orientation_z : 3
+view_orientation_w : 3

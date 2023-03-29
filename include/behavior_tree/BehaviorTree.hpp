@@ -263,6 +263,7 @@ namespace wmj
         geometry_msgs::msg::PoseStamped startPosition;
         geometry_msgs::msg::PoseStamped resumePosition;
         geometry_msgs::msg::PoseStamped gainPosition;
+        geometry_msgs::msg::PoseStamped viewPosition;
         int last_position = 0;                          
     private:
         /**
@@ -468,8 +469,9 @@ namespace wmj
         int m_last_position = -1;       // 我的上一个目标地点
         int total_blood = 0;            // 总共恢复血量
         int last_blood = 600;           // 上一时刻哨兵血量
-        int first_arrive = 0;           // 是否第一次到达的标志位，与防抖相适应,1为已到达，0为未到达
-        double goal_position[3][2];     // 储存目的地x,y坐标
+        int if_arrive = 0;              // 是否到达的标志位，与防抖相适应,1为已到达，0为未到达
+        int blood_time = 0;             // 累积补血时间
+        double goal_position[4][2];     // 储存目的地x,y坐标
 
 
     private:

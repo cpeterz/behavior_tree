@@ -59,8 +59,8 @@ namespace wmj
             "Armors", 10, std::bind(&DataReadNode::armor_call_back, this, _1));
         sub_game = node->create_subscription<base_interfaces::msg::Game>(
             "Game", 10, std::bind(&DataReadNode::game_call_back, this, _1));
-        // sub_navigation = node->create_subscription<base_interfaces::msg::Navigation>(
-        //     "Navigation", 10, std::bind(&DataReadNode::navigation_call_back, this, _1));
+        sub_navigation = node->create_subscription<base_interfaces::msg::Navigation>(
+            "Navigation", 10, std::bind(&DataReadNode::navigation_call_back, this, _1));
     }
 
     void DataReadNode::armor_call_back(const base_interfaces::msg::Armors::SharedPtr msg)
@@ -137,7 +137,7 @@ namespace wmj
         while (last_game_timestamp == game_msg.game_timestamp)
         {
             // 一秒内未收到消息则使用默认数据
-            if (m_waitGameMsgTime > 1000 || game_msg_count == 0)
+            if (m_waitGameMsgTime > 3000 || game_msg_count == 0)
             {
                 game_msg_count++;
                 readParam(BT_YAML, GAME);
@@ -154,7 +154,7 @@ namespace wmj
 
         while (last_armor_timestamp == armor_msg.armor_timestamp)
         {
-            if (m_waitArmorMsgTime > 1000 || armor_msg_count == 0)
+            if (m_waitArmorMsgTime > 3000 || armor_msg_count == 0)
             {
                 armor_msg_count++;
                 readParam(BT_YAML, ARMOR);
@@ -175,7 +175,7 @@ namespace wmj
 
         while (last_navigation_timestamp == navigation_msg.navigation_timestamp)
         {
-            if (m_waitNavigationMsgTime > 1000 || navigation_msg_count == 0)
+            if (m_waitNavigationMsgTime > 3000 || navigation_msg_count == 0)
             {
                 navigation_msg_count++;
                 readParam(BT_YAML, NAV);
@@ -335,6 +335,7 @@ namespace wmj
         startPosition = GetPositionInfo(0);
         resumePosition = GetPositionInfo(1);
         gainPosition = GetPositionInfo(2);
+        viewPosition = GetPositionInfo(3);
     }
     
     BT::PortsList Navigation_Node::providedPorts()
@@ -386,6 +387,15 @@ namespace wmj
                 fs["gain_orientation_z"] >> goal_position.pose.orientation.z;
                 fs["gain_orientation_w"] >> goal_position.pose.orientation.w;
                 break;
+            case 3:        // 增益点
+                fs["view_position_x"] >> goal_position.pose.position.x;
+                fs["view_position_y"] >> goal_position.pose.position.y;
+                fs["view_position_z"] >> goal_position.pose.position.z;
+                fs["view_orientation_x"] >> goal_position.pose.orientation.x;
+                fs["view_orientation_y"] >> goal_position.pose.orientation.y;
+                fs["view_orientation_z"] >> goal_position.pose.orientation.z;
+                fs["view_orientation_w"] >> goal_position.pose.orientation.w;
+                break;
         }
         goal_position.header.frame_id = "map";
         goal_position.header.stamp.nanosec = wmj::now();
@@ -417,6 +427,8 @@ namespace wmj
         case 2:
             msg.goal_position = gainPosition;
             break;
+        case 3:
+            msg.goal_position = viewPosition;
         }
 
         if(position.value() == last_position)
@@ -593,7 +605,7 @@ namespace wmj
      */ 
     bool Navigation_Condition::GetNavigationStatus()
     {
-            return false;
+        return false;
     }
     
     /**
@@ -742,6 +754,11 @@ namespace wmj
         BT::PortsList port_lists;
         port_lists.insert(BT::InputPort<double>("armor_distance"));
         port_lists.insert(BT::InputPort<int>("armor_number"));
+        port_lists.insert(BT::InputPort<int>("bullet_num"));
+        port_lists.insert(BT::InputPort<int>("bullet_rate"));
+        port_lists.insert(BT::InputPort<int>("time_left"));
+        
+        port_lists.insert(BT::OutputPort<int>("bullet_rate"));
         return port_lists;
     }
     
@@ -755,18 +772,31 @@ namespace wmj
     */ 
     bool Scan_Condition::GetScanStatus()
     {
-        auto armor_number = getInput<int>("armor_number");
-        auto armor_distance = getInput<double>("armor_distance");
+        auto armor_number = getInput<int>("armor_number").value();
+        // auto armor_distance = getInput<double>("armor_distance").value();
+        auto bullet_num = getInput<int>("bullet_num").value();
+        auto bullet_rate = getInput<int>("bullet_rate").value();
+        auto time_left = getInput<int>("time_left").value();
 
-        if (!armor_distance)
+        int bullet_add = (bullet_num - time_left * 2.5) - time_left * 3;  // 击打增益
+        int bullet_true_rate = 0;
+        
+        if(bullet_add > 0 && bullet_rate >= 3)            
         {
-            throw BT::RuntimeError("Scan Condition missing required input [message]:",
-                                   armor_distance.error());
+            bullet_true_rate = bullet_rate + bullet_add;
         }
-        
-        
-        // 若在六米内识别到装甲板，则开启自瞄无限制击打，否则开启扫描
-        if (armor_number.value() > 0 && armor_distance.value() < 600)
+        else
+        {
+            bullet_true_rate = bullet_rate;
+        }
+
+        if( bullet_true_rate >= 20 )
+        {
+            bullet_true_rate = 20;
+        }
+        setOutput<int>("bullet_rate", bullet_true_rate);
+        // 若在五米内识别到装甲板，则开启自瞄限制击打，否则开启扫描
+        if (armor_number > 0 && bullet_true_rate > 5)
         {
             return false;
         }
@@ -987,6 +1017,8 @@ namespace wmj
         fs["resume_position_y"] >> goal_position[1][1];
         fs["gain_position_x"] >> goal_position[2][0];
         fs["gain_position_y"] >> goal_position[2][1];
+        fs["view_position_x"] >> goal_position[3][0];
+        fs["view_position_y"] >> goal_position[3][1];
     }
 
     BT::PortsList Defend_Main_Condition::providedPorts()
@@ -1044,8 +1076,8 @@ namespace wmj
             throw BT::RuntimeError("detect_node missing required input [message]:",
                                    armor_number.error());
         }
-
-        int m_position = -1;  // 默认导航不开启
+ 
+        // 血量增幅计算
         int blood_diff = sentry_blood.value() - last_blood;  
         // 假设恢复血量时没有被击打，则累加血量增加量
         if(blood_diff > 0)
@@ -1054,17 +1086,23 @@ namespace wmj
         }
         last_blood = sentry_blood.value();
 
+        int m_position = 3;  // 默认导航前往视界位置
+
         if((time_left.value() < 250 && time_left.value() > 210) || (time_left.value() < 160 && time_left.value() > 120))
         {   
             m_position = 2;         // 假设每次增益点都在增益点开启30s内解决,则规定时间内前往增益点抢夺，最后一波不会前往
         }        
-        std::cout << "total_blood:" << total_blood << std::endl;
-        
+
+        if( enemy_alive.value() < 1 )
+        {
+            m_position = 0;            // 我方陷入人数劣势时，若无需去往补血点，则返回出发点
+        }
+
         if(sentry_blood.value() < 350)
         {
-            if(time_left.value() > 80 && total_blood < 550)
+            if(time_left.value() > 60 && total_blood < 600)
             {
-                m_position = 1;        // 血量低于350且在补血时间内，且补血点还有大量资源可补血，则返回补血点
+                m_position = 1;        // 血量低于350且在补血时间内，且补血点还有资源可补血，则返回补血点
             }
             else
             {
@@ -1072,22 +1110,17 @@ namespace wmj
             }
         }
 
-        if( (enemy_alive.value() < 1 ) && m_position != 1 )
-        {
-            m_position = 0;            // 我方陷入人数劣势时，若无需去往补血点，则返回出发点
-        }
-
-        if( m_alive.value() > enemy_alive.value() && m_position != 1 && total_blood <= 300 && time_left.value() > 60)
-        {
-            m_position = 2;            // 我方人数优势时，若无需前往补血点，补血点还有大量资源可补血，则可前往进攻点
-        }
+        // if( m_alive.value() > enemy_alive.value() && m_position != 1 && total_blood <= 300 && time_left.value() > 60)
+        // {
+        //     m_position = 2;            // 我方人数优势时，若无需前往补血点，补血点还有大量资源可补血，则可前往进攻点
+        // }
 
         if( time_left.value() < 120 && time_left.value() > 60 && sentry_blood.value() < 600 && total_blood < 600)
         {
             m_position = 1;            // 补血前一分钟，如果补血点还有血并且自身状态未满，则前往补血点
         }
 
-        if( m_last_position == 1 && total_blood < 600 && time_left.value() > 80 && sentry_blood.value() < 600)
+        if( m_last_position == 1 && total_blood < 600 && time_left.value() > 60 && sentry_blood.value() < 600)
         {
             m_position = 1;            // 在补血点补满血量后才会离开
         }
@@ -1095,7 +1128,7 @@ namespace wmj
         std::cout << "init_position:" << m_position << std::endl;
         
         // 判断目标位置和当前位置的差距
-        if(m_position != -1)           // 如果我当前需要运动并且已经抵达目标位置
+        if(m_position != -1)           
         {
             double goal_pose[2];
             double m_pose[2];
@@ -1103,33 +1136,45 @@ namespace wmj
             goal_pose[1] = goal_position[m_position][1];
             m_pose[0] = getInput<double>("navigation_cur_position_x").value();
             m_pose[1] = getInput<double>("navigation_cur_position_y").value();
-            for( int i = 0 ; i < 2 ; i++)
+            if( if_arrive == 0 )       // 如果当前未到达位置
+            {         
+                if( fabs(m_pose[0] - goal_pose[0]) < 0.01 && fabs(m_pose[1] - goal_pose[1]) < 0.01)            // 未到达目标位置的情况下，1cm内认为已到目标位置，first_arrive置1
+                {
+                    if_arrive = 1;
+                    m_position = -1;
+                }
+            }
+            else                       // 如果已到达指定位置
             {
-                int j = 0;
-                if( first_arrive == 0 && (m_pose[i] - goal_pose[i]) < 0.01)           // 未到达目标位置的情况下，1cm内认为已到目标位置，first_arrive置零
+                if( fabs(m_pose[0] - goal_pose[0]) < 0.1 && fabs(m_pose[1] - goal_pose[1]) < 0.1)               // 未到达目标位置的情况下，1cm内认为已到目标位置，first_arrive置1
                 {
-                    j++;
+                    m_position = -1;
                 }
-                if( first_arrive == 1 && (m_pose[i] - goal_pose[i]) > 0.1 )           // 已到达目标位置的情况下，10cm内认为在原本位置,否则不在目标位置，first_arrive置零
+                else
                 {
-                    first_arrive = 0;
-                    break;
-                }
-                if( i == 1 )
-                {
-                   m_position = -1;        // 各个位置数据差别不大，则认为此时已到达目的地
-                }
-                if( j == 1 )
-                {
-                    first_arrive = 1;       // 当前位置与目标位置相距极小，则认为已到达，则此时进入防抖动循环         
+                    if_arrive = 0;                                                                               // 若误差过大，则认为当前已经偏离目标位置，需要重新导航，if_arrive置0
                 }
             }
         }
 
+        // 防止在补血点受到伤害后，误以为自身还有血量可补充，做的时间最大值退出
+        if( if_arrive == 1 && m_last_position == 1 )      // 如果我已经到达补血点
+        {
+            blood_time ++;
+            if( blood_time > 30 )  // 如果三十帧都没有离开补血区域，则认为已经没有可以补充的血量。
+            {
+                total_blood = 1000;
+            }
+        }
+        else
+        {
+            blood_time = 0;
+        }
+
         // 计算弹频
-        int bullet_rate = (int)(30 - pow((armor_distance.value()/100),2));   // 3 米 20 频 , 4米 15 频 ，5 米 5 频 
+        int bullet_rate = (int)(30 - pow((armor_distance.value()/1000),2));   // 3 米 20 频 , 4米 15 频 ，5 米 5 频 
         
-        if(armor_distance.value() == 0 || armor_number.value() == 0)      // 没有识别到则设置为-1
+        if(armor_distance.value() == 0 || armor_number.value() == 0 || bullet_rate <= 0)      // 没有识别到则设置为-1
         {
             bullet_rate = -1;
         }
@@ -1142,24 +1187,29 @@ namespace wmj
         // 综合处理
         if(m_position == 0 || m_position == 1)   // 回血或返回出发点较为紧急，三米内击打
         {
-           if( bullet_rate == 20)
+           if( bullet_rate == 20 && bullet_num.value() > 0)
            {
                 m_position = -1;
            }
         }
-        else if( m_position == 2)                // 抢夺增益点时四米内击打
+        else if( m_position == 2 || m_position == 3)                // 抢夺增益点或前往视界点时四米内击打
         {
-            if( bullet_rate >= 14)
+            if( bullet_rate >= 14 && bullet_num.value() > 0)
             {
                 m_position = -1;
             }
         }
-        // std::cout << "armor_number:" << armor_number.value() << "  " << "armor_distance:" << armor_distance.value() << std::endl;
+
         std::cout << "defend_bullet_rate:" << bullet_rate << std::endl;
+        std::cout << "last_position:" << m_last_position << std::endl;
         std::cout << "position:" << m_position << std::endl;
         
+        if( m_position != -1)
+        {
+            m_last_position = m_position;
+        }
+        
         setOutput("bullet_rate", bullet_rate);
-        setOutput("position", m_position);
         return m_position;
     }
 
