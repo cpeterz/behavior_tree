@@ -3,15 +3,15 @@
     <!-- ////////// -->
     <BehaviorTree ID="MainTree">
         <Sequence>
-            <Action ID="DataReadNode" armor_distance="{armor_distance}" armor_number="{armor_number}" armor_timestamp="{armor_timestamp}" bullet_num="{bullet_num}" default_position="{default_position}" enemy_alive="{enemy_alive}" game_start="{game_start}" game_timestamp="{game_timestamp}" m_alive="{m_alive}" manual_top="{manual_top}" name="dataread" navigation_cur_orientation_w="{navigation_cur_orientation_w}" navigation_cur_orientation_x="{navigation_cur_orientation_x}" navigation_cur_orientation_y="{navigation_cur_orientation_y}" navigation_cur_orientation_z="{navigation_cur_orientation_z}" navigation_cur_position_x="{navigation_cur_position_x}" navigation_cur_position_y="{navigation_cur_position_y}" navigation_cur_position_z="{navigation_cur_position_z}" navigation_timestamp="{navigation_timestamp}" outpost_blood="{outpost_blood}" sentry_blood="{sentry_blood}" time_left="{time_left}"/>
-            <IfThenElse>
+            <Action ID="DataReadNode" armor_distance="{armor_distance}" armor_number="{armor_number}" armor_timestamp="{armor_timestamp}" bullet_num="{bullet_num}" enemy_alive="{enemy_alive}" game_start="{game_start}" game_timestamp="{game_timestamp}" m_alive="{m_alive}" manual_top="{manual_top}" name="dataread" navigation_cur_orientation_w="{navigation_cur_orientation_w}" navigation_cur_orientation_x="{navigation_cur_orientation_x}" navigation_cur_orientation_y="{navigation_cur_orientation_y}" navigation_cur_orientation_z="{navigation_cur_orientation_z}" navigation_cur_position_x="{navigation_cur_position_x}" navigation_cur_position_y="{navigation_cur_position_y}" navigation_cur_position_z="{navigation_cur_position_z}" navigation_timestamp="{navigation_timestamp}" outpost_blood="{outpost_blood}" position="{position}" sentry_blood="{sentry_blood}" time_left="{time_left}"/>
+            <WhileDoElse>
                 <Condition ID="Start_Condition" game_start="{game_start}"/>
                 <Fallback name="Start_Fallback">
                     <Repeat num_cycles="2">
                         <Sequence name="Main_Sequence">
                             <Action ID="Top_on_Node" top_status="{top_status}"/>
-                            <IfThenElse>
-                                <Condition ID="Defend_Main_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" default_position="{default_position}" enemy_alive="{enemy_alive}" m_alive="{m_alive}" navigation_cur_orientation_w="{navigation_cur_orientation_w}" navigation_cur_orientation_x="{navigation_cur_orientation_x}" navigation_cur_orientation_y="{navigation_cur_orientation_y}" navigation_cur_orientation_z="{navigation_cur_orientation_z}" navigation_cur_position_x="{navigation_cur_position_x}" navigation_cur_position_y="{navigation_cur_position_y}" navigation_cur_position_z="{navigation_cur_position_z}" outpost_blood="{outpost_blood}" position="{position}" sentry_blood="{sentry_blood}" time_left="{time_left}"/>
+                            <WhileDoElse>
+                                <Condition ID="Defend_Main_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" enemy_alive="{enemy_alive}" m_alive="{m_alive}" navigation_cur_orientation_w="{navigation_cur_orientation_w}" navigation_cur_orientation_x="{navigation_cur_orientation_x}" navigation_cur_orientation_y="{navigation_cur_orientation_y}" navigation_cur_orientation_z="{navigation_cur_orientation_z}" navigation_cur_position_x="{navigation_cur_position_x}" navigation_cur_position_y="{navigation_cur_position_y}" navigation_cur_position_z="{navigation_cur_position_z}" outpost_blood="{outpost_blood}" position="{position}" sentry_blood="{sentry_blood}" time_left="{time_left}"/>
                                 <Sequence name="Navigation_on_Sequence">
                                     <Action ID="Navigation_on_Node" position="{position}"/>
                                     <Action ID="Scan_off_Node"/>
@@ -19,7 +19,7 @@
                                 </Sequence>
                                 <Sequence name="Navigation_off_Sequence">
                                     <Action ID="Navigation_off_Node"/>
-                                    <IfThenElse>
+                                    <WhileDoElse>
                                         <Condition ID="Scan_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" time_left="{time_left}"/>
                                         <Sequence name="Scan_on_Sequence">
                                             <Action ID="Scan_on_Node"/>
@@ -29,16 +29,16 @@
                                             <Action ID="Limit_Shoot_Node" bullet_rate="{bullet_rate}"/>
                                             <Action ID="Scan_off_Node"/>
                                         </Sequence>
-                                    </IfThenElse>
+                                    </WhileDoElse>
                                 </Sequence>
-                            </IfThenElse>
+                            </WhileDoElse>
                         </Sequence>
                     </Repeat>
                     <ForceSuccess>
                         <Sequence name="Default_Sequence">
                             <Action ID="Scan_off_Node"/>
                             <Action ID="Top_on_Node" top_status="{top_status}"/>
-                            <IfThenElse>
+                            <WhileDoElse>
                                 <Condition ID="Back_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}" position="{position}"/>
                                 <Sequence name="Navigation_Back_Sequence">
                                     <Action ID="Navigation_on_Node" position="{position}"/>
@@ -48,7 +48,7 @@
                                     <Action ID="No_Limit_Shoot_Node"/>
                                     <Action ID="Navigation_off_Node"/>
                                 </Sequence>
-                            </IfThenElse>
+                            </WhileDoElse>
                         </Sequence>
                     </ForceSuccess>
                 </Fallback>
@@ -58,7 +58,7 @@
                     <Action ID="Scan_off_Node"/>
                     <Action ID="No_Shoot_Node"/>
                 </Sequence>
-            </IfThenElse>
+            </WhileDoElse>
         </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
@@ -81,7 +81,6 @@
             <output_port name="armor_number"/>
             <output_port name="armor_timestamp"/>
             <output_port name="bullet_num"/>
-            <output_port name="default_position"/>
             <output_port name="enemy_alive"/>
             <output_port name="game_start"/>
             <output_port name="game_timestamp"/>
@@ -96,6 +95,7 @@
             <output_port name="navigation_cur_position_z"/>
             <output_port name="navigation_timestamp"/>
             <output_port name="outpost_blood"/>
+            <output_port name="position"/>
             <output_port name="sentry_blood"/>
             <output_port name="time_left"/>
         </Action>
@@ -104,7 +104,6 @@
             <input_port name="armor_number"/>
             <input_port name="bullet_num"/>
             <output_port name="bullet_rate"/>
-            <input_port name="default_position"/>
             <input_port name="enemy_alive"/>
             <input_port name="m_alive"/>
             <input_port name="navigation_cur_orientation_w"/>

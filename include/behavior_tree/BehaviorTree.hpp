@@ -37,7 +37,7 @@ namespace wmj
     {
         double navigation_timestamp;         // 导航事件戳
         // int navigation_status;            // 当前导航状态，true表示正在移动
-        int navigation_position;             // 当前目标位置
+        int navigation_default_position;             // 默认位置
         double navigation_cur_position_x;    // 当前导航位置
         double navigation_cur_position_y;
         double navigation_cur_position_z;
@@ -263,8 +263,7 @@ namespace wmj
         geometry_msgs::msg::PoseStamped startPosition;
         geometry_msgs::msg::PoseStamped resumePosition;
         geometry_msgs::msg::PoseStamped gainPosition;
-        geometry_msgs::msg::PoseStamped viewPosition;
-        int last_position = 0;                          
+        geometry_msgs::msg::PoseStamped viewPosition;                
     private:
         /**
          * @brief 获取位置信息
@@ -293,6 +292,8 @@ namespace wmj
 
     private:
         BT::NodeStatus tick() override;
+        int final_last_position = -1;          
+        int time_count = 0;
     };
 
     /**
