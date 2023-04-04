@@ -61,6 +61,7 @@ namespace wmj
         bool game_start;          // 比赛是否开始
         int m_alive;              // 我方存活机器人
         int enemy_alive;          // 敌方存活机器人
+        double hityaw;            // 被打击角度
     };
 
     /**

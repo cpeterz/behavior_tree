@@ -23,6 +23,7 @@ namespace wmj
             fs["init_m_alive"] >> this->game_msg.m_alive;
             fs["init_enemy_alive"] >> this->game_msg.enemy_alive;
             fs["init_position"] >> this->navigation_msg.navigation_default_position;
+            fs["init_hityaw"] >> this->game_msg.hityaw;
             break;
         case ARMOR:
             fs["armor_number"] >> this->armor_msg.armor_number;
@@ -43,6 +44,7 @@ namespace wmj
             fs["m_alive"] >> this->game_msg.m_alive;
             fs["enemy_alive"] >> this->game_msg.enemy_alive;
             fs["position"] >> this->navigation_msg.navigation_default_position;
+            fs["hityaw"] >> this->game_msg.hityaw; 
             RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-game msg");
             break;     
         }
@@ -82,6 +84,7 @@ namespace wmj
         game_msg.time_left = msg->time_left;
         game_msg.sentry_blood = msg->sentry_blood;
         game_msg.game_start = msg->game_start;
+        game_msg.hityaw = msg->hityaw;
         RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Game msg get");
     }
 
@@ -117,6 +120,7 @@ namespace wmj
         ports_list.insert(BT::OutputPort<bool>("game_start"));
         ports_list.insert(BT::OutputPort<int>("m_alive"));
         ports_list.insert(BT::OutputPort<int>("enemy_alive"));
+        ports_list.insert(BT::OutputPort<double>("hityaw"));
 
         ports_list.insert(BT::OutputPort<double>("navigation_cur_position_x"));
         ports_list.insert(BT::OutputPort<double>("navigation_cur_position_y"));
@@ -221,6 +225,7 @@ namespace wmj
         setOutput("game_start", game_msg.game_start);
         setOutput("m_alive", game_msg.m_alive);
         setOutput("enemy_alive", game_msg.enemy_alive);
+        setOutput("hityaw", game_msg.hityaw);
 
         setOutput("navigation_cur_position_x", navigation_msg.navigation_cur_position_x);
         setOutput("navigation_cur_position_y", navigation_msg.navigation_cur_position_y);
@@ -791,7 +796,6 @@ namespace wmj
         port_lists.insert(BT::InputPort<double>("armor_distance"));
         port_lists.insert(BT::InputPort<int>("armor_number"));
         port_lists.insert(BT::InputPort<int>("bullet_num"));
-        port_lists.insert(BT::InputPort<int>("bullet_rate"));
         port_lists.insert(BT::InputPort<int>("time_left"));
         
         port_lists.insert(BT::OutputPort<int>("bullet_rate"));
@@ -809,11 +813,11 @@ namespace wmj
     bool Scan_Condition::GetScanStatus()
     {
         auto armor_number = getInput<int>("armor_number").value();
-        // auto armor_distance = getInput<double>("armor_distance").value();
+        auto armor_distance = getInput<double>("armor_distance").value();
         auto bullet_num = getInput<int>("bullet_num").value();
-        auto bullet_rate = getInput<int>("bullet_rate").value();
         auto time_left = getInput<int>("time_left").value();
 
+        int bullet_rate = (int)(30 - pow((armor_distance/1000),2));
         int bullet_add = (bullet_num - time_left * 2.5) - time_left * 3;  // 击打增益
         int bullet_true_rate = 0;
         
@@ -1070,6 +1074,7 @@ namespace wmj
         port_lists.insert(BT::InputPort<int>("outpost_blood"));
         port_lists.insert(BT::InputPort<int>("m_alive"));
         port_lists.insert(BT::InputPort<int>("enemy_alive"));
+        port_lists.insert(BT::InputPort<double>("hityaw"));
 
         port_lists.insert(BT::InputPort<double>("navigation_cur_position_x"));
         port_lists.insert(BT::InputPort<double>("navigation_cur_position_y"));
@@ -1082,7 +1087,6 @@ namespace wmj
         port_lists.insert(BT::OutputPort<int>("bullet_rate"));
         port_lists.insert(BT::OutputPort<int>("position"));
         port_lists.insert(BT::InputPort<int>("default_position"));
-
 
         return port_lists;
     }
@@ -1110,6 +1114,7 @@ namespace wmj
         auto m_alive = getInput<int>("m_alive");
         auto enemy_alive = getInput<int>("enemy_alive");
         auto default_position = getInput<int>("default_position");
+        auto hityaw = getInput<double>("hityaw");
         
         if (!armor_number)
         {
@@ -1134,7 +1139,7 @@ namespace wmj
         }
 
 
-        if((time_left.value() < 250 && time_left.value() > 210) || (time_left.value() < 160 && time_left.value() > 120))
+        if((time_left.value() < 160 && time_left.value() > 120))
         {   
             m_position = 2;         // 假设每次增益点都在增益点开启30s内解决,则规定时间内前往增益点抢夺，最后一波不会前往
         }        
@@ -1156,11 +1161,6 @@ namespace wmj
             }
         }
 
-        // if( m_alive.value() > enemy_alive.value() && m_position != 1 && total_blood <= 300 && time_left.value() > 60)
-        // {
-        //     m_position = 2;            // 我方人数优势时，若无需前往补血点，补血点还有大量资源可补血，则可前往进攻点
-        // }
-
         if( time_left.value() < 120 && time_left.value() > 60 && sentry_blood.value() < 600 && total_blood < 600)
         {
             m_position = 1;            // 补血前一分钟，如果补血点还有血并且自身状态未满，则前往补血点
@@ -1169,6 +1169,12 @@ namespace wmj
         if( m_last_position == 1 && total_blood < 600 && time_left.value() > 60 && sentry_blood.value() < 600)
         {
             m_position = 1;            // 在补血点补满血量后才会离开
+        }
+
+        // 第一次补给点一定会去
+        if(time_left.value() < 250 && time_left.value() > 210 && sentry_blood.value() > 100)
+        {
+            m_position = 2;
         }
 
         std::cout << "init_position:" << m_position << std::endl;
@@ -1250,12 +1256,19 @@ namespace wmj
             }
         }
 
+        // 被打了不会导航
+        if( hityaw.value() > 0 )
+        {
+            m_position = -1;
+        }
+
         std::cout << "armor_number:" << armor_number.value() << std::endl;
         std::cout << "armor_distance:" << armor_distance.value() << std::endl;
         std::cout << "defend_bullet_rate:" << bullet_rate << std::endl;
         std::cout << "last_position:" << m_last_position << std::endl;
         std::cout << "position:" << m_position << std::endl;
         std::cout << "if_arrive:" << if_arrive << std::endl;
+        std::cout << "hityaw:" << hityaw.value() << std::endl;
         
         if( m_position != -1)
         {
