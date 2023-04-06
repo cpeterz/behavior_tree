@@ -1304,7 +1304,7 @@ int main(int argc, char **argv)
     BT::BehaviorTreeFactory factory;
 
     // 共用rclcpp::Node节点
-    auto node = std::make_shared<rclcpp::Node>("topic");
+    auto node = std::make_shared<rclcpp::Node>("behavior_tree");
 
     factory.registerNodeType<wmj::DataReadNode>("DataReadNode", node);
     factory.registerNodeType<wmj::No_Shoot_Node>("No_Shoot_Node", node);
