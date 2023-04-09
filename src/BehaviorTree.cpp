@@ -37,7 +37,7 @@ namespace wmj
             fs["if_track"] >> this->aimer_msg.aimer_if_track;
             RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-armor msg");
             break;
-        case AIMER:
+        case SHOOT:
             fs["armor_number"] >> this->armor_msg.armor_number;
             fs["armor_distance"] >> this->armor_msg.armor_distance;
             fs["shootable"] >> this->aimer_msg.aimer_shootable;
@@ -222,7 +222,7 @@ namespace wmj
             if (m_waitAimerMsgTime > 1000 )
             {
                 aimer_msg_count++;
-                readParam(BT_YAML, AIMER);
+                readParam(BT_YAML, SHOOT);
                 break;
             }
             loop_rate.sleep();    // 等待 100ms

@@ -82,7 +82,7 @@ namespace wmj
     {
         ALL,        // 所有参数
         ARMOR,      // 装甲板参数
-        AIMER,      // 自瞄参数
+        SHOOT,      // 自瞄参数
         GAME,       // 比赛状况参数
         NAV         // 导航参数
     };
