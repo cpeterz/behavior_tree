@@ -27,8 +27,17 @@ namespace wmj
             fs["init_enemy_alive"] >> this->game_msg.enemy_alive;
             fs["init_position"] >> this->navigation_msg.navigation_default_position;
             fs["init_hityaw"] >> this->game_msg.hityaw;
+            fs["init_shootable"] >> this->aimer_msg.aimer_shootable;
+            fs["init_if_track"] >> this->aimer_msg.aimer_if_track;
             break;
         case ARMOR:
+            fs["armor_number"] >> this->armor_msg.armor_number;
+            fs["armor_distance"] >> this->armor_msg.armor_distance;
+            fs["shootable"] >> this->aimer_msg.aimer_shootable;
+            fs["if_track"] >> this->aimer_msg.aimer_if_track;
+            RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-armor msg");
+            break;
+        case AIMER:
             fs["armor_number"] >> this->armor_msg.armor_number;
             fs["armor_distance"] >> this->armor_msg.armor_distance;
             fs["shootable"] >> this->aimer_msg.aimer_shootable;
@@ -218,7 +227,7 @@ namespace wmj
             }
             loop_rate.sleep();    // 等待 100ms
             m_waitAimerMsgTime += 100 ;
-            RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Aimer Msg %lf ms", m_waitArmorMsgTime);
+            RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Aimer Msg %lf ms", m_waitAimerMsgTime);
         }
         if (last_aimer_timestamp != aimer_msg.aimer_timestamp)
         {
@@ -358,7 +367,7 @@ namespace wmj
     */
     BT::NodeStatus No_Limit_Shoot_Node::tick()
     {
-        msg.bullet_rate = 20; // 最大弹速
+        msg.bullet_rate = 0; // 最大弹速
         msg.btaimer_timestamp = wmj::now();
         std::cout << "sent_bullet_rate:" << msg.bullet_rate << std::endl;
         pub_shooter->publish(msg);
@@ -376,10 +385,14 @@ namespace wmj
         auto aimer_if_track = getInput<bool>("aimer_if_track");
         auto aimer_shootable = getInput<bool>("aimer_shootable");
         // msg.bullet_rate = bullet_rate.value();
-        if( aimer_if_track )
+
+        std::cout << "aimer_if_track:" << aimer_if_track.value() << std::endl;
+        std::cout << "aimer_shootable:" << aimer_shootable.value() << std::endl;
+        if( aimer_if_track.value() )
         {
-            if( aimer_shootable )
+            if( aimer_shootable.value() )
             {
+                
                 msg.bullet_rate = 1;
             }
             else

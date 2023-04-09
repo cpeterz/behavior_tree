@@ -56,7 +56,7 @@
                     <Action ID="Top_off_Node" top_status="{top_status}"/>
                     <Action ID="Navigation_off_Node"/>
                     <IfThenElse>
-                        <Condition ID="Scan_Condition" aimer_if_track="" aimer_shootable="" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" time_left="{time_left}"/>
+                        <Condition ID="Scan_Condition" aimer_if_track="{aimer_if_track}" aimer_shootable="{aimer_shootable}" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" time_left="{time_left}"/>
                         <Sequence>
                             <Action ID="Scan_on_Node"/>
                             <Action ID="No_Shoot_Node"/>
