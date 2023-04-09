@@ -12,6 +12,9 @@ namespace wmj
             fs["init_armor_number"] >> this->armor_msg.armor_number;
             fs["init_armor_distance"] >> this->armor_msg.armor_distance;
             fs["init_armor_timestamp"] >> this->armor_msg.armor_timestamp;
+            fs["init_aimer_if_track"] >> this->aimer_msg.aimer_if_track;
+            fs["init_aimer_shootable"] >> this->aimer_msg.aimer_shootable;
+            fs["init_aimer_timestamp"] >> this->aimer_msg.aimer_timestamp;
             fs["init_navigation_timestamp"] >> this->navigation_msg.navigation_timestamp;
             fs["init_outpost_blood"] >> this->game_msg.outpost_blood;
             fs["init_sentry_blood"] >> this->game_msg.sentry_blood;
@@ -28,11 +31,9 @@ namespace wmj
         case ARMOR:
             fs["armor_number"] >> this->armor_msg.armor_number;
             fs["armor_distance"] >> this->armor_msg.armor_distance;
-            fs["outpost_blood"] >> this->game_msg.outpost_blood;
-            fs["sentry_blood"] >> this->game_msg.sentry_blood;
-            fs["bullet_num"] >> this->game_msg.bullet_num;
-            fs["time_left"] >> this->game_msg.time_left;
-            RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-armor msg");
+            fs["shootable"] >> this->aimer_msg.aimer_shootable;
+            fs["if_track"] >> this->aimer_msg.aimer_if_track;
+            RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-aimer msg");
             break;
         case NAV: 
             fs["position"] >> this->navigation_msg.navigation_default_position;
@@ -45,6 +46,10 @@ namespace wmj
             fs["enemy_alive"] >> this->game_msg.enemy_alive;
             fs["position"] >> this->navigation_msg.navigation_default_position;
             fs["hityaw"] >> this->game_msg.hityaw; 
+            fs["outpost_blood"] >> this->game_msg.outpost_blood;
+            fs["sentry_blood"] >> this->game_msg.sentry_blood;
+            fs["bullet_num"] >> this->game_msg.bullet_num;
+            fs["time_left"] >> this->game_msg.time_left;
             RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-game msg");
             break;     
         }
@@ -59,6 +64,8 @@ namespace wmj
         readParam(BT_YAML, ALL);
         sub_armors = node->create_subscription<base_interfaces::msg::Armors>(
             "Armors", 1, std::bind(&DataReadNode::armor_call_back, this, _1));
+        sub_aimer = node->create_subscription<base_interfaces::msg::Aimer>(
+            "Aimer", 1, std::bind(&DataReadNode::aimer_call_back, this, _1));
         sub_game = node->create_subscription<base_interfaces::msg::Game>(
             "Game", 1, std::bind(&DataReadNode::game_call_back, this, _1));
         sub_navigation = node->create_subscription<base_interfaces::msg::Navigation>(
@@ -72,6 +79,15 @@ namespace wmj
         armor_msg.armor_timestamp = msg->time_stamp;
         armor_msg.armor_number = msg->num;
         RCLCPP_INFO(rclcpp::get_logger("get msg"), "Armor msg get");
+    }
+
+    void DataReadNode::aimer_call_back(const base_interfaces::msg::Aimer::SharedPtr msg)
+    {
+        // 更新装甲板数据
+        aimer_msg.aimer_shootable = msg->shootable;
+        aimer_msg.aimer_if_track = msg->is_track;
+        aimer_msg.aimer_timestamp = msg->timestamp;
+        RCLCPP_INFO(rclcpp::get_logger("get msg"), "Aimer msg get");
     }
 
     void DataReadNode::game_call_back(const base_interfaces::msg::Game::SharedPtr msg)
@@ -110,6 +126,9 @@ namespace wmj
         ports_list.insert(BT::OutputPort<int>("armor_number"));
         ports_list.insert(BT::OutputPort<double>("armor_distance"));
         ports_list.insert(BT::OutputPort<double>("armor_timestamp"));
+
+        ports_list.insert(BT::OutputPort<bool>("aimer_if_track"));
+        ports_list.insert(BT::OutputPort<bool>("aimer_shootable"));
 
         ports_list.insert(BT::OutputPort<int>("outpost_blood"));
         ports_list.insert(BT::OutputPort<int>("sentry_blood"));
@@ -181,7 +200,29 @@ namespace wmj
         }
         if (last_armor_timestamp != armor_msg.armor_timestamp)
         {
-            m_waitArmorMsgTime = 0;
+            m_waitAimerMsgTime = 0;
+        }
+
+        while (last_aimer_timestamp == aimer_msg.aimer_timestamp)
+        {
+            if ( aimer_msg_count == 0 )
+            {
+                aimer_msg_count++;
+                break;
+            }
+            if (m_waitAimerMsgTime > 1000 )
+            {
+                aimer_msg_count++;
+                readParam(BT_YAML, AIMER);
+                break;
+            }
+            loop_rate.sleep();    // 等待 100ms
+            m_waitAimerMsgTime += 100 ;
+            RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Aimer Msg %lf ms", m_waitArmorMsgTime);
+        }
+        if (last_aimer_timestamp != aimer_msg.aimer_timestamp)
+        {
+            m_waitAimerMsgTime = 0;
         }
 
         while (last_navigation_timestamp == navigation_msg.navigation_timestamp)
@@ -209,12 +250,17 @@ namespace wmj
         last_armor_timestamp = armor_msg.armor_timestamp;
         last_game_timestamp = game_msg.game_timestamp;
         last_navigation_timestamp = navigation_msg.navigation_timestamp;
+        last_aimer_timestamp = aimer_msg.aimer_timestamp;
         
         setOutput("default_position", navigation_msg.navigation_default_position);
 
         setOutput("armor_number", armor_msg.armor_number);
         setOutput("armor_distance", armor_msg.armor_distance);
         setOutput("armor_timestamp", armor_msg.armor_timestamp);
+
+        setOutput("aimer_if_track", aimer_msg.aimer_if_track);
+        setOutput("aimer_shootable", aimer_msg.aimer_shootable);
+        setOutput("aimer_timestamp", aimer_msg.aimer_timestamp);
 
         setOutput("outpost_blood", game_msg.outpost_blood);
         setOutput("sentry_blood", game_msg.sentry_blood);
@@ -300,6 +346,8 @@ namespace wmj
     {
         BT::PortsList port_list;
         port_list.insert(BT::InputPort<int>("bullet_rate"));
+        port_list.insert(BT::InputPort<bool>("aimer_if_track"));
+        port_list.insert(BT::InputPort<bool>("aimer_shootable"));
         return port_list;
     }
     
@@ -325,9 +373,27 @@ namespace wmj
     BT::NodeStatus Limit_Shoot_Node::tick()
     {
         auto bullet_rate = getInput<int>("bullet_rate");
-        msg.bullet_rate = bullet_rate.value();
+        auto aimer_if_track = getInput<bool>("aimer_if_track");
+        auto aimer_shootable = getInput<bool>("aimer_shootable");
+        // msg.bullet_rate = bullet_rate.value();
+        if( aimer_if_track )
+        {
+            if( aimer_shootable )
+            {
+                msg.bullet_rate = 1;
+            }
+            else
+            {
+                msg.bullet_rate = 0;
+            }
+        }
+        else
+        {
+            msg.bullet_rate = -1;
+        }
+
         msg.btaimer_timestamp = wmj::now();
-        std::cout << "sent_bullet_rate:" << msg.bullet_rate << std::endl;
+        std::cout << "shootnode_bullet_rate:" << msg.bullet_rate << std::endl;
         pub_shooter->publish(msg);
         return BT::NodeStatus::SUCCESS;
     }
@@ -438,7 +504,7 @@ namespace wmj
                                    position.error());
         }
 
-        std::cout << "final_position:" << position.value() << std::endl;
+        std::cout << "navigation_position:" << position.value() << std::endl;
         switch (position.value())
         {
         case 0:
@@ -454,7 +520,7 @@ namespace wmj
             msg.goal_position = viewPosition;
         }
 
-        std::cout << "final_last_position:" << final_last_position << std::endl;
+        std::cout << "navigation_last_position:" << final_last_position << std::endl;
         if(position.value() == final_last_position)
         {
             msg.navigation_continue = 2;                          // 与上一帧位置相同，则continue置为 2
@@ -478,7 +544,7 @@ namespace wmj
         // std::cout << "bt_navigation_timestamp:" << msg.bt_navigation_timestamp << std::endl;
         final_last_position = position.value();
 
-        std::cout << "sent_navigation_continue:" << msg.navigation_continue << std::endl;
+        std::cout << "navigation_continue:" << msg.navigation_continue << std::endl;
         navigationPub->publish(msg);
         return BT::NodeStatus::SUCCESS;
     }
@@ -795,6 +861,8 @@ namespace wmj
         BT::PortsList port_lists;
         port_lists.insert(BT::InputPort<double>("armor_distance"));
         port_lists.insert(BT::InputPort<int>("armor_number"));
+        port_lists.insert(BT::InputPort<bool>("aimer_if_track"));
+        port_lists.insert(BT::InputPort<bool>("aimer_shootable"));
         port_lists.insert(BT::InputPort<int>("bullet_num"));
         port_lists.insert(BT::InputPort<int>("time_left"));
         
@@ -807,36 +875,21 @@ namespace wmj
      * 
      * @param armor_distance  最近装甲板距离
      * @param armor_number    识别到的装甲板数量
-     * 
+     * @param aimer_if_track
+     * @param aimer_shootable
      * @return 是否开启扫描
     */ 
     bool Scan_Condition::GetScanStatus()
     {
         auto armor_number = getInput<int>("armor_number").value();
         auto armor_distance = getInput<double>("armor_distance").value();
+        auto aimer_if_track = getInput<bool>("aimer_if_track").value();
+        auto aimer_shootable = getInput<bool>("aimer_shootable").value();
+
         auto bullet_num = getInput<int>("bullet_num").value();
         auto time_left = getInput<int>("time_left").value();
 
-        int bullet_rate = (int)(30 - pow((armor_distance/1000),2));
-        int bullet_add = (bullet_num - time_left * 2.5) - time_left * 3;  // 击打增益
-        int bullet_true_rate = 0;
-        
-        if(bullet_add > 0 && bullet_rate >= 3)            
-        {
-            bullet_true_rate = bullet_rate + bullet_add;
-        }
-        else
-        {
-            bullet_true_rate = bullet_rate;
-        }
-
-        if( bullet_true_rate >= 20 )
-        {
-            bullet_true_rate = 20;
-        }
-        setOutput<int>("bullet_rate", bullet_true_rate);
-        // 若在五米内识别到装甲板，则开启自瞄限制击打，否则开启扫描
-        if (armor_number > 0 && bullet_true_rate > 5)
+        if( aimer_if_track )
         {
             return false;
         }
@@ -1067,6 +1120,9 @@ namespace wmj
 
         port_lists.insert(BT::InputPort<int>("armor_number"));
         port_lists.insert(BT::InputPort<double>("armor_distance"));
+        
+        port_lists.insert(BT::InputPort<bool>("aimer_if_track"));
+        port_lists.insert(BT::InputPort<bool>("aimer_shootable"));
 
         port_lists.insert(BT::InputPort<int>("sentry_blood"));
         port_lists.insert(BT::InputPort<int>("bullet_num"));
@@ -1115,6 +1171,8 @@ namespace wmj
         auto enemy_alive = getInput<int>("enemy_alive");
         auto default_position = getInput<int>("default_position");
         auto hityaw = getInput<double>("hityaw");
+        auto aimer_if_track = getInput<bool>("aimer_if_track");
+        auto aimer_shootable = getInput<bool>("aimer_shootable");
         
         if (!armor_number)
         {
@@ -1139,12 +1197,12 @@ namespace wmj
         }
 
 
-        if((time_left.value() < 160 && time_left.value() > 120))
+        if((time_left.value() < 160 && time_left.value() > 135))
         {   
             m_position = 2;         // 假设每次增益点都在增益点开启30s内解决,则规定时间内前往增益点抢夺，最后一波不会前往
         }        
 
-        if( enemy_alive.value() < 1 )
+        if( m_alive.value() < enemy_alive.value() )
         {
             m_position = 0;            // 我方陷入人数劣势时，若无需去往补血点，则返回出发点
         }
@@ -1172,7 +1230,7 @@ namespace wmj
         }
 
         // 第一次补给点一定会去
-        if(time_left.value() < 250 && time_left.value() > 210 && sentry_blood.value() > 100)
+        if(time_left.value() < 250 && time_left.value() > 225 && sentry_blood.value() > 200)
         {
             m_position = 2;
         }
@@ -1193,7 +1251,7 @@ namespace wmj
             std::cout << "diff_pose_x:" << fabs(m_pose[0] - goal_pose[0]) << "  " << "diff_pose_y:" << fabs(m_pose[1] - goal_pose[1]) << std::endl;
             if( if_arrive == 0 )       // 如果当前未到达位置
             {         
-                if( fabs(m_pose[0] - goal_pose[0]) < 0.3 && fabs(m_pose[1] - goal_pose[1]) < 0.3)            // 未到达目标位置的情况下，1cm内认为已到目标位置，first_arrive置1
+                if( fabs(m_pose[0] - goal_pose[0]) < 0.3 && fabs(m_pose[1] - goal_pose[1]) < 0.25)            // 未到达目标位置的情况下，25cm内认为已到目标位置，first_arrive置1
                 {
                     if_arrive = 1;
                     m_position = -1;
@@ -1201,7 +1259,7 @@ namespace wmj
             }
             else                       // 如果已到达指定位置
             {
-                if( fabs(m_pose[0] - goal_pose[0]) < 0.6 && fabs(m_pose[1] - goal_pose[1]) < 0.6)               // 未到达目标位置的情况下，1cm内认为已到目标位置，first_arrive置1
+                if( fabs(m_pose[0] - goal_pose[0]) < 0.6 && fabs(m_pose[1] - goal_pose[1]) < 0.5)               // 未到达目标位置的情况下，50cm内认为已到目标位置，first_arrive置1
                 {
                     m_position = -1;
                 }
@@ -1217,9 +1275,9 @@ namespace wmj
         {
             std::cout << "blood_time:" << blood_time << std::endl;
             blood_time ++;
-            if( blood_time > 50 )  // 如果25帧都没有离开补血区域，则认为已经没有可以补充的血量。
+            if( blood_time > 50 )  // 如果50帧都没有离开补血区域，则认为已经没有可以补充的血量。
             {
-                total_blood = 1000;
+                total_blood = 600;
             }
         }
         else
@@ -1227,48 +1285,60 @@ namespace wmj
             blood_time = 0;
         }
 
-        // 计算弹频
-        int bullet_rate = (int)(30 - pow((armor_distance.value()/1000),2));   // 3 米 20 频 , 4米 15 频 ，5 米 5 频 
+        // // 计算弹频
+        // int bullet_rate = (int)(30 - pow((armor_distance.value()/1000),2));   // 3 米 20 频 , 4米 15 频 ，5 米 5 频 
         
-        if(armor_distance.value() == 0 || armor_number.value() == 0 || bullet_rate <= 0)      // 没有识别到则设置为-1
-        {
-            bullet_rate = -1;
-        }
+        // if(armor_distance.value() == 0 || armor_number.value() == 0 || bullet_rate <= 0)      // 没有识别到则设置为-1
+        // {
+        //     bullet_rate = -1;
+        // }
         
-        if(bullet_rate > 20)
-        {
-            bullet_rate = 20;
-        }
+        // if(bullet_rate > 20)
+        // {
+        //     bullet_rate = 20;
+        // }
 
-        // 综合处理
-        if(m_position == 0 || m_position == 1)   // 回血或返回出发点较为紧急，三米内击打
-        {
-           if( bullet_rate == 20 && bullet_num.value() > 0)
-           {
-                m_position = -1;
-           }
-        }
-        else if( m_position == 2 || m_position == 3)                // 抢夺增益点或前往视界点时四米内击打
-        {
-            if( bullet_rate >= 14 && bullet_num.value() > 0)
-            {
-                m_position = -1;
-            }
-        }
+        // // 综合处理
+        // if(m_position == 0 || m_position == 1)   // 回血或返回出发点较为紧急，三米内击打
+        // {
+        //    if( bullet_rate == 20 && bullet_num.value() > 0)
+        //    {
+        //         m_position = -1;
+        //    }
+        // }
+        // else if( m_position == 2 || m_position == 3)                // 抢夺增益点或前往视界点时四米内击打
+        // {
+        //     if( bullet_rate >= 14 && bullet_num.value() > 0)
+        //     {
+        //         m_position = -1;
+        //     }
+        // }
 
         // 被打了不会导航
-        if( hityaw.value() > 0 )
+        // if( hityaw.value() > 0 )
+        //     detect_time = 15;
+        // if(detect_time >= 0)
+        // {
+        //     detect_time--;
+        //     m_position = -1;
+        // }
+
+        int bullet_rate = -1;
+        if( aimer_if_track.value() == true)
         {
             m_position = -1;
+            bullet_rate = 20;
         }
-
-        std::cout << "armor_number:" << armor_number.value() << std::endl;
-        std::cout << "armor_distance:" << armor_distance.value() << std::endl;
+        
+        std::cout << "defend_armor_number:" << armor_number.value() << std::endl;
+        std::cout << "defend_armor_distance:" << armor_distance.value() << std::endl;
         std::cout << "defend_bullet_rate:" << bullet_rate << std::endl;
-        std::cout << "last_position:" << m_last_position << std::endl;
-        std::cout << "position:" << m_position << std::endl;
-        std::cout << "if_arrive:" << if_arrive << std::endl;
-        std::cout << "hityaw:" << hityaw.value() << std::endl;
+        std::cout << "defend_last_position:" << m_last_position << std::endl;
+        std::cout << "defend_position:" << m_position << std::endl;
+        std::cout << "defend_if_arrive:" << if_arrive << std::endl;
+        // std::cout << "defend_hityaw:" << hityaw.value() << std::endl;
+        std::cout << "if_track:" << aimer_if_track.value() << std::endl;
+        std::cout << "shootable:" << aimer_shootable.value() << std::endl;
         
         if( m_position != -1)
         {

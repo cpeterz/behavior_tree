@@ -1,6 +1,7 @@
 #include "base_interfaces/msg/game.hpp"
 #include "base_interfaces/msg/navigation.hpp"
 #include "base_interfaces/msg/armors.hpp"
+#include "base_interfaces/msg/aimer.hpp"
 #include "base_interfaces/msg/bt_aimer.hpp"
 #include "base_interfaces/msg/bt_top.hpp"
 #include "base_interfaces/msg/bt_scan.hpp"
@@ -29,6 +30,16 @@ namespace wmj
         double armor_distance;  // 最近的装甲板的距离
         double armor_timestamp; // 装甲板时间戳
     };
+
+    /**
+     * @brief 自瞄权限信息
+    */
+   struct Aimer_msg
+   {
+        bool aimer_if_track;     // 是否跟踪
+        bool aimer_shootable;    // 是否发射
+        double aimer_timestamp;  // 自瞄时间戳
+   };
 
     /**
      * @brief 导航信息结构体
@@ -71,6 +82,7 @@ namespace wmj
     {
         ALL,        // 所有参数
         ARMOR,      // 装甲板参数
+        AIMER,      // 自瞄参数
         GAME,       // 比赛状况参数
         NAV         // 导航参数
     };
@@ -100,26 +112,32 @@ namespace wmj
         std::shared_ptr<rclcpp::Node> node_;     // 信息发布收取节点
 
         Armor_msg armor_msg;                     // 装甲板信息
+        Aimer_msg aimer_msg;
         Navigation_msg navigation_msg;           // 导航信息
         Game_msg game_msg;                       // 比赛状况信息
 
         double last_armor_timestamp = 0;         // 记录上次消息的事件戳
+        double last_aimer_timestamp = 0;
         double last_navigation_timestamp = 0;
         double last_game_timestamp = 0;
         int armor_msg_count = 0;                 // 记录当前消息延误次数
+        int aimer_msg_count = 0;
         int game_msg_count = 0;
         int navigation_msg_count = 0;
         // int m_waitNum;                        // 等待消息次数
         double m_waitGameMsgTime = 0;            // 等待比赛状况消息时间
         double m_waitNavigationMsgTime = 0;      // 等待导航信息消息时间
         double m_waitArmorMsgTime = 0;           // 等待装甲板消息时间
+        double m_waitAimerMsgTime = 0;
 
         rclcpp::Subscription<base_interfaces::msg::Armors>::SharedPtr sub_armors;         // 装甲板信息订阅者
+        rclcpp::Subscription<base_interfaces::msg::Aimer>::SharedPtr sub_aimer;           // 自瞄信息订阅者
         rclcpp::Subscription<base_interfaces::msg::Game>::SharedPtr sub_game;             // 比赛状况订阅者
         rclcpp::Subscription<base_interfaces::msg::Navigation>::SharedPtr sub_navigation; // 导航信息订阅
 
         // 订阅者回调函数，用于接收消息并储存到类成员中
         void armor_call_back(const base_interfaces::msg::Armors::SharedPtr msg);
+        void aimer_call_back(const base_interfaces::msg::Aimer::SharedPtr msg);
         void game_call_back(const base_interfaces::msg::Game::SharedPtr msg);
         void navigation_call_back(const base_interfaces::msg::Navigation::SharedPtr msg);
     };
@@ -474,7 +492,7 @@ namespace wmj
         int if_arrive = 0;              // 是否到达的标志位，与防抖相适应,1为已到达，0为未到达
         int blood_time = 0;             // 累积补血时间
         double goal_position[4][2];     // 储存目的地x,y坐标
-
+        int detect_time;                // 检测时间
 
     private:
         /**
@@ -482,6 +500,8 @@ namespace wmj
          * 
          * @param armor_distance     最近装甲板距离
          * @param armor_number       装甲板数量
+         * @param shootable          是否击打
+         * @param if_track           是否跟踪
          * @param bullet_num         剩余子弹数量
          * @param navigation_status  当前导航状态
          * @param outpost_blood      前哨站血量
@@ -515,6 +535,8 @@ namespace wmj
          * 
          * @param armor_distance     最近装甲板距离
          * @param armor_number       装甲板数量
+         * @param shootable          是否击打
+         * @param if_track           是否跟踪
          * @param bullet_num         剩余子弹数量
          * @param navigation_status  当前导航状态
          * @param outpost_blood      前哨站血量
@@ -549,6 +571,8 @@ namespace wmj
          * 
          * @param armor_distance  最近装甲板距离
          * @param armor_number    识别到的装甲板数量
+         * @param shootable          是否击打
+         * @param if_track           是否跟踪
          * 
          * @return 是否开启扫描
         */ 
@@ -602,6 +626,8 @@ namespace wmj
          * 
          * @param armor_distance   最近装甲板距离
          * @param armor_number     识别到的装甲板数量
+         * @param shootable          是否击打
+         * @param if_track           是否跟踪
          * 
          * @return 是否返航
         */ 

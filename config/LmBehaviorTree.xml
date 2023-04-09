@@ -3,7 +3,7 @@
     <!-- ////////// -->
     <BehaviorTree ID="MainTree">
         <Sequence>
-            <Action ID="DataReadNode" armor_distance="{armor_distance}" armor_number="{armor_number}" armor_timestamp="{armor_timestamp}" bullet_num="{bullet_num}" default_position="{default_position}" enemy_alive="{enemy_alive}" game_start="{game_start}" game_timestamp="{game_timestamp}" hityaw="{hityaw}" m_alive="{m_alive}" manual_top="{manual_top}" name="dataread" navigation_cur_orientation_w="{navigation_cur_orientation_w}" navigation_cur_orientation_x="{navigation_cur_orientation_x}" navigation_cur_orientation_y="{navigation_cur_orientation_y}" navigation_cur_orientation_z="{navigation_cur_orientation_z}" navigation_cur_position_x="{navigation_cur_position_x}" navigation_cur_position_y="{navigation_cur_position_y}" navigation_cur_position_z="{navigation_cur_position_z}" navigation_timestamp="{navigation_timestamp}" outpost_blood="{outpost_blood}" sentry_blood="{sentry_blood}" time_left="{time_left}"/>
+            <Action ID="DataReadNode" aimer_if_track="{aimer_if_track}" aimer_shootable="{aimer_shootable}" armor_distance="{armor_distance}" armor_number="{armor_number}" armor_timestamp="{armor_timestamp}" bullet_num="{bullet_num}" default_position="{default_position}" enemy_alive="{enemy_alive}" game_start="{game_start}" game_timestamp="{game_timestamp}" hityaw="{hityaw}" m_alive="{m_alive}" manual_top="{manual_top}" name="dataread" navigation_cur_orientation_w="{navigation_cur_orientation_w}" navigation_cur_orientation_x="{navigation_cur_orientation_x}" navigation_cur_orientation_y="{navigation_cur_orientation_y}" navigation_cur_orientation_z="{navigation_cur_orientation_z}" navigation_cur_position_x="{navigation_cur_position_x}" navigation_cur_position_y="{navigation_cur_position_y}" navigation_cur_position_z="{navigation_cur_position_z}" navigation_timestamp="{navigation_timestamp}" outpost_blood="{outpost_blood}" sentry_blood="{sentry_blood}" time_left="{time_left}"/>
             <IfThenElse>
                 <Condition ID="Start_Condition" game_start="{game_start}"/>
                 <Fallback name="Start_Fallback">
@@ -11,7 +11,7 @@
                         <Sequence name="Main_Sequence">
                             <Action ID="Top_on_Node" top_status="{top_status}"/>
                             <IfThenElse>
-                                <Condition ID="Defend_Main_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" default_position="{default_position}" enemy_alive="{enemy_alive}" hityaw="{hityaw}" m_alive="{m_alive}" navigation_cur_orientation_w="{navigation_cur_orientation_w}" navigation_cur_orientation_x="{navigation_cur_orientation_x}" navigation_cur_orientation_y="{navigation_cur_orientation_y}" navigation_cur_orientation_z="{navigation_cur_orientation_z}" navigation_cur_position_x="{navigation_cur_position_x}" navigation_cur_position_y="{navigation_cur_position_y}" navigation_cur_position_z="{navigation_cur_position_z}" outpost_blood="{outpost_blood}" position="{position}" sentry_blood="{sentry_blood}" time_left="{time_left}"/>
+                                <Condition ID="Defend_Main_Condition" aimer_if_track="{aimer_if_track}" aimer_shootable="{aimer_shootable}" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" default_position="{default_position}" enemy_alive="{enemy_alive}" hityaw="{hityaw}" m_alive="{m_alive}" navigation_cur_orientation_w="{navigation_cur_orientation_w}" navigation_cur_orientation_x="{navigation_cur_orientation_x}" navigation_cur_orientation_y="{navigation_cur_orientation_y}" navigation_cur_orientation_z="{navigation_cur_orientation_z}" navigation_cur_position_x="{navigation_cur_position_x}" navigation_cur_position_y="{navigation_cur_position_y}" navigation_cur_position_z="{navigation_cur_position_z}" outpost_blood="{outpost_blood}" position="{position}" sentry_blood="{sentry_blood}" time_left="{time_left}"/>
                                 <Sequence name="Navigation_on_Sequence">
                                     <Action ID="Navigation_on_Node" position="{position}"/>
                                     <Action ID="Scan_off_Node"/>
@@ -20,13 +20,13 @@
                                 <Sequence name="Navigation_off_Sequence">
                                     <Action ID="Navigation_off_Node"/>
                                     <IfThenElse>
-                                        <Condition ID="Scan_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" time_left="{time_left}"/>
+                                        <Condition ID="Scan_Condition" aimer_if_track="{aimer_if_track}" aimer_shootable="{aimer_shootable}" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" time_left="{time_left}"/>
                                         <Sequence name="Scan_on_Sequence">
                                             <Action ID="Scan_on_Node"/>
                                             <Action ID="No_Shoot_Node"/>
                                         </Sequence>
                                         <Sequence name="Scan_off_Sequence">
-                                            <Action ID="Limit_Shoot_Node" bullet_rate="{bullet_rate}"/>
+                                            <Action ID="Limit_Shoot_Node" aimer_if_track="{aimer_if_track}" aimer_shootable="{aimer_shootable}" bullet_rate="{bullet_rate}"/>
                                             <Action ID="Scan_off_Node"/>
                                         </Sequence>
                                     </IfThenElse>
@@ -56,7 +56,7 @@
                     <Action ID="Top_off_Node" top_status="{top_status}"/>
                     <Action ID="Navigation_off_Node"/>
                     <IfThenElse>
-                        <Condition ID="Scan_Condition" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" time_left="{time_left}"/>
+                        <Condition ID="Scan_Condition" aimer_if_track="" aimer_shootable="" armor_distance="{armor_distance}" armor_number="{armor_number}" bullet_num="{bullet_num}" bullet_rate="{bullet_rate}" time_left="{time_left}"/>
                         <Sequence>
                             <Action ID="Scan_on_Node"/>
                             <Action ID="No_Shoot_Node"/>
@@ -86,6 +86,8 @@
             <output_port name="position"/>
         </Condition>
         <Action ID="DataReadNode">
+            <output_port name="aimer_if_track"/>
+            <output_port name="aimer_shootable"/>
             <output_port name="armor_distance"/>
             <output_port name="armor_number"/>
             <output_port name="armor_timestamp"/>
@@ -110,6 +112,8 @@
             <output_port name="time_left"/>
         </Action>
         <Condition ID="Defend_Main_Condition">
+            <input_port name="aimer_if_track"/>
+            <input_port name="aimer_shootable"/>
             <input_port name="armor_distance"/>
             <input_port name="armor_number"/>
             <input_port name="bullet_num"/>
@@ -142,6 +146,8 @@
             <input_port name="top_status"/>
         </Control>
         <Action ID="Limit_Shoot_Node">
+            <input_port name="aimer_if_track"/>
+            <input_port name="aimer_shootable"/>
             <input_port name="bullet_rate"/>
         </Action>
         <Condition ID="Navigation_Condition"/>
@@ -156,6 +162,8 @@
             <input_port name="top_status"/>
         </Condition>
         <Condition ID="Scan_Condition">
+            <input_port name="aimer_if_track"/>
+            <input_port name="aimer_shootable"/>
             <input_port default="armor_distance" name="armor_distance"/>
             <input_port default="armor_number" name="armor_number"/>
             <input_port name="bullet_num"/>
