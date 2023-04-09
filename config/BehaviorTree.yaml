@@ -19,6 +19,7 @@ init_position : -1               # 初始化不移动
 init_hityaw : -1.                # 初始化时未被击打
 init_shootable : 0     
 init_if_track : 1           
+init_aimer_timestamp : 0.  
 #默认数据
 armor_number: 0   
 armor_distance : 0. 

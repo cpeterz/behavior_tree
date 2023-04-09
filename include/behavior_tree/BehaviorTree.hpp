@@ -160,18 +160,17 @@ namespace wmj
     };
 
     /**
-     * @brief 无限制发射节点
+     * @brief 只跟随不发射节点
      * 
-     * @return 最大弹频
     */
-    class No_Limit_Shoot_Node : public Shoot_Node
+    class Track_Node : public Shoot_Node
     {
     public:
-        No_Limit_Shoot_Node(const std::string &name, const BT::NodeConfig &config,
+        Track_Node(const std::string &name, const BT::NodeConfig &config,
                             rclcpp::Node::SharedPtr node)
             : Shoot_Node::Shoot_Node(name, config, node)
         {
-            RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "No_Limit_Shoot_Node is working");
+            RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Track_Node is working");
         }
 
     private:
@@ -367,7 +366,7 @@ namespace wmj
     };
 
     /**
-     * @brief 开启扫描节点
+     * @brief 开启360扫描节点
     */
     class Scan_on_Node : public Scan_Node
     {
@@ -377,6 +376,23 @@ namespace wmj
             : Scan_Node::Scan_Node(name, config, node)
         {
             RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Scan_on_Node is working");
+        }
+
+    private:
+        BT::NodeStatus tick() override;
+    };
+
+    /**
+     * @brief 开启90扫描节点
+    */
+    class Scan_90_Node : public Scan_Node
+    {
+    public:
+        Scan_90_Node(const std::string &name, const BT::NodeConfig &config,
+                            rclcpp::Node::SharedPtr node)
+            : Scan_Node::Scan_Node(name, config, node)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("STATUS INFO"), "Scan_90_Node is working");
         }
 
     private:
@@ -493,6 +509,8 @@ namespace wmj
         int blood_time = 0;             // 累积补血时间
         double goal_position[4][2];     // 储存目的地x,y坐标
         int detect_time;                // 检测时间
+        bool m_last_track = false;      // 上一帧是否识别到
+        int m_lost_detect_count = 0;    // 多少帧内未识别
 
     private:
         /**

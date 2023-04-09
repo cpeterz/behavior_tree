@@ -11,16 +11,16 @@ namespace wmj
             RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get init msg");
             fs["init_armor_number"] >> this->armor_msg.armor_number;
             fs["init_armor_distance"] >> this->armor_msg.armor_distance;
-            fs["init_armor_timestamp"] >> this->armor_msg.armor_timestamp;
+            // fs["init_armor_timestamp"] >> this->armor_msg.armor_timestamp;
             fs["init_aimer_if_track"] >> this->aimer_msg.aimer_if_track;
             fs["init_aimer_shootable"] >> this->aimer_msg.aimer_shootable;
-            fs["init_aimer_timestamp"] >> this->aimer_msg.aimer_timestamp;
-            fs["init_navigation_timestamp"] >> this->navigation_msg.navigation_timestamp;
+            // fs["init_aimer_timestamp"] >> this->aimer_msg.aimer_timestamp;
+            // fs["init_navigation_timestamp"] >> this->navigation_msg.navigation_timestamp;
             fs["init_outpost_blood"] >> this->game_msg.outpost_blood;
             fs["init_sentry_blood"] >> this->game_msg.sentry_blood;
             fs["init_bullet_num"] >> this->game_msg.bullet_num;
             fs["init_time_left"] >> this->game_msg.time_left;
-            fs["init_game_timestamp"] >> this->game_msg.game_timestamp;
+            // fs["init_game_timestamp"] >> this->game_msg.game_timestamp;
             fs["init_manual_top"] >> this->game_msg.manual_top;
             fs["init_game_start"] >> this->game_msg.game_start;
             fs["init_m_alive"] >> this->game_msg.m_alive;
@@ -74,7 +74,7 @@ namespace wmj
         sub_armors = node->create_subscription<base_interfaces::msg::Armors>(
             "Armors", 1, std::bind(&DataReadNode::armor_call_back, this, _1));
         sub_aimer = node->create_subscription<base_interfaces::msg::Aimer>(
-            "Aimer", 1, std::bind(&DataReadNode::aimer_call_back, this, _1));
+            "Shoot", 1, std::bind(&DataReadNode::aimer_call_back, this, _1));
         sub_game = node->create_subscription<base_interfaces::msg::Game>(
             "Game", 1, std::bind(&DataReadNode::game_call_back, this, _1));
         sub_navigation = node->create_subscription<base_interfaces::msg::Navigation>(
@@ -159,6 +159,8 @@ namespace wmj
         ports_list.insert(BT::OutputPort<double>("navigation_cur_orientation_w"));
         ports_list.insert(BT::OutputPort<double>("navigation_timestamp"));
         ports_list.insert(BT::OutputPort<int>("default_position"));
+
+        ports_list.insert(BT::OutputPort<int>("scan_mode"));
 
         return ports_list;
     }
@@ -255,11 +257,16 @@ namespace wmj
         {
             m_waitNavigationMsgTime = 0;
         }
-        
+        // std::cout << "armor_msg.armor_timestamp:" << armor_msg.armor_timestamp << std::endl;
+        // std::cout << "navigation_msg.navigation_timestamp:" << navigation_msg.navigation_timestamp << std::endl;
+        // std::cout << "aimer_msg.aimer_timestamp" << aimer_msg.aimer_timestamp << std::endl;
+        // std::cout << "game_msg.game_timestamp" << game_msg.game_timestamp << std::endl;
+
         last_armor_timestamp = armor_msg.armor_timestamp;
         last_game_timestamp = game_msg.game_timestamp;
         last_navigation_timestamp = navigation_msg.navigation_timestamp;
         last_aimer_timestamp = aimer_msg.aimer_timestamp;
+        int scan_mode = 0;
         
         setOutput("default_position", navigation_msg.navigation_default_position);
 
@@ -290,6 +297,9 @@ namespace wmj
         setOutput("navigation_cur_orientation_z", navigation_msg.navigation_cur_orientation_z);
         setOutput("navigation_cur_orientation_w", navigation_msg.navigation_cur_orientation_w);
         setOutput("navigation_timestamp", navigation_msg.navigation_timestamp);
+
+        setOutput("scan_mode", scan_mode);
+
         return BT::NodeStatus::SUCCESS;
     }
 
@@ -361,13 +371,12 @@ namespace wmj
     }
     
     /**
-     * @brief 无限制发射节点
+     * @brief 跟随不发射节点
      * 
-     * @return 最大弹频
     */
-    BT::NodeStatus No_Limit_Shoot_Node::tick()
+    BT::NodeStatus Track_Node::tick()
     {
-        msg.bullet_rate = 0; // 最大弹速
+        msg.bullet_rate = 0; // 保持跟随不发射
         msg.btaimer_timestamp = wmj::now();
         std::cout << "sent_bullet_rate:" << msg.bullet_rate << std::endl;
         pub_shooter->publish(msg);
@@ -406,7 +415,7 @@ namespace wmj
         }
 
         msg.btaimer_timestamp = wmj::now();
-        std::cout << "shootnode_bullet_rate:" << msg.bullet_rate << std::endl;
+        std::cout << "sent_bullet_rate:" << msg.bullet_rate << std::endl;
         pub_shooter->publish(msg);
         return BT::NodeStatus::SUCCESS;
     }
@@ -557,7 +566,7 @@ namespace wmj
         // std::cout << "bt_navigation_timestamp:" << msg.bt_navigation_timestamp << std::endl;
         final_last_position = position.value();
 
-        std::cout << "navigation_continue:" << msg.navigation_continue << std::endl;
+        std::cout << "sent_navigation_continue:" << msg.navigation_continue << std::endl;
         navigationPub->publish(msg);
         return BT::NodeStatus::SUCCESS;
     }
@@ -611,6 +620,7 @@ namespace wmj
     BT::PortsList Scan_Node::providedPorts()
     {
         BT::PortsList port_lists;
+        port_lists.insert(BT::InputPort<int>("scan_mode"));
         return port_lists;
     }
     
@@ -619,7 +629,25 @@ namespace wmj
     */
     BT::NodeStatus Scan_on_Node::tick()
     {
-        msg.scan_mode = 0;  //SCAN_360
+        // msg.scan_timestamp = wmj::now();
+        auto scan_mode = getInput<int>("scan_mode");
+        if (!scan_mode)
+        {
+            throw BT::RuntimeError("detect_node missing required input [message]:",
+                                   scan_mode.error());
+        }
+        msg.scan_mode = scan_mode.value();  
+        std::cout << "sent_scan:" << msg.scan_mode << std::endl;
+        ScanPub->publish(msg);
+        return BT::NodeStatus::SUCCESS;
+    }
+
+    /**
+     * @brief 开启90扫描节点
+    */
+    BT::NodeStatus Scan_90_Node::tick()
+    {
+        msg.scan_mode = wmj::SCAN_MODE::SCAN_90;  //SCAN_90
         // msg.scan_timestamp = wmj::now();
         std::cout << "sent_scan:" << msg.scan_mode << std::endl;
         ScanPub->publish(msg);
@@ -872,37 +900,23 @@ namespace wmj
     BT::PortsList Scan_Condition::providedPorts()
     {
         BT::PortsList port_lists;
-        port_lists.insert(BT::InputPort<double>("armor_distance"));
-        port_lists.insert(BT::InputPort<int>("armor_number"));
         port_lists.insert(BT::InputPort<bool>("aimer_if_track"));
-        port_lists.insert(BT::InputPort<bool>("aimer_shootable"));
         port_lists.insert(BT::InputPort<int>("bullet_num"));
-        port_lists.insert(BT::InputPort<int>("time_left"));
-        
-        port_lists.insert(BT::OutputPort<int>("bullet_rate"));
         return port_lists;
     }
     
     /**
      * @brief 获取扫描状态，根据装甲板识别效果判断。True则开启扫描,否则开启自瞄。
-     * 
-     * @param armor_distance  最近装甲板距离
-     * @param armor_number    识别到的装甲板数量
      * @param aimer_if_track
      * @param aimer_shootable
      * @return 是否开启扫描
     */ 
     bool Scan_Condition::GetScanStatus()
     {
-        auto armor_number = getInput<int>("armor_number").value();
-        auto armor_distance = getInput<double>("armor_distance").value();
         auto aimer_if_track = getInput<bool>("aimer_if_track").value();
-        auto aimer_shootable = getInput<bool>("aimer_shootable").value();
-
         auto bullet_num = getInput<int>("bullet_num").value();
-        auto time_left = getInput<int>("time_left").value();
 
-        if( aimer_if_track )
+        if( aimer_if_track && bullet_num > 0)
         {
             return false;
         }
@@ -1154,6 +1168,7 @@ namespace wmj
         port_lists.insert(BT::InputPort<double>("navigation_cur_orientation_w"));
 
         port_lists.insert(BT::OutputPort<int>("bullet_rate"));
+        port_lists.insert(BT::OutputPort<int>("scan_mode"));
         port_lists.insert(BT::OutputPort<int>("position"));
         port_lists.insert(BT::InputPort<int>("default_position"));
 
@@ -1288,7 +1303,7 @@ namespace wmj
         {
             std::cout << "blood_time:" << blood_time << std::endl;
             blood_time ++;
-            if( blood_time > 50 )  // 如果50帧都没有离开补血区域，则认为已经没有可以补充的血量。
+            if( blood_time > 60 )  // 如果50帧都没有离开补血区域，则认为已经没有可以补充的血量。 15s TimeOut
             {
                 total_blood = 600;
             }
@@ -1298,35 +1313,6 @@ namespace wmj
             blood_time = 0;
         }
 
-        // // 计算弹频
-        // int bullet_rate = (int)(30 - pow((armor_distance.value()/1000),2));   // 3 米 20 频 , 4米 15 频 ，5 米 5 频 
-        
-        // if(armor_distance.value() == 0 || armor_number.value() == 0 || bullet_rate <= 0)      // 没有识别到则设置为-1
-        // {
-        //     bullet_rate = -1;
-        // }
-        
-        // if(bullet_rate > 20)
-        // {
-        //     bullet_rate = 20;
-        // }
-
-        // // 综合处理
-        // if(m_position == 0 || m_position == 1)   // 回血或返回出发点较为紧急，三米内击打
-        // {
-        //    if( bullet_rate == 20 && bullet_num.value() > 0)
-        //    {
-        //         m_position = -1;
-        //    }
-        // }
-        // else if( m_position == 2 || m_position == 3)                // 抢夺增益点或前往视界点时四米内击打
-        // {
-        //     if( bullet_rate >= 14 && bullet_num.value() > 0)
-        //     {
-        //         m_position = -1;
-        //     }
-        // }
-
         // 被打了不会导航
         // if( hityaw.value() > 0 )
         //     detect_time = 15;
@@ -1335,12 +1321,30 @@ namespace wmj
         //     detect_time--;
         //     m_position = -1;
         // }
-
+        int scan_mode = 0;
         int bullet_rate = -1;
         if( aimer_if_track.value() == true)
         {
             m_position = -1;
             bullet_rate = 20;
+            m_last_track = true;
+            m_lost_detect_count = 0;
+        }
+        else if(aimer_if_track.value() == false && m_last_track == true)
+        {
+            if( m_lost_detect_count < 30 )   // 90度扫7.5s
+            {
+                m_position = -1;
+                bullet_rate = 20;
+                m_lost_detect_count++;
+                scan_mode = 2;
+            }
+            else
+            {
+                m_last_track = false;
+                m_lost_detect_count = 0;
+            }
+        
         }
         
         std::cout << "defend_armor_number:" << armor_number.value() << std::endl;
@@ -1349,6 +1353,7 @@ namespace wmj
         std::cout << "defend_last_position:" << m_last_position << std::endl;
         std::cout << "defend_position:" << m_position << std::endl;
         std::cout << "defend_if_arrive:" << if_arrive << std::endl;
+        std::cout << "scan_mode:" << scan_mode << std::endl;
         // std::cout << "defend_hityaw:" << hityaw.value() << std::endl;
         std::cout << "if_track:" << aimer_if_track.value() << std::endl;
         std::cout << "shootable:" << aimer_shootable.value() << std::endl;
@@ -1360,6 +1365,7 @@ namespace wmj
  
         setOutput("bullet_rate", bullet_rate);
         setOutput("position", m_position);
+        setOutput("scan_mode", scan_mode);
         return m_position;
     }
 
@@ -1392,7 +1398,7 @@ int main(int argc, char **argv)
     factory.registerNodeType<wmj::DataReadNode>("DataReadNode", node);
     factory.registerNodeType<wmj::No_Shoot_Node>("No_Shoot_Node", node);
     factory.registerNodeType<wmj::Limit_Shoot_Node>("Limit_Shoot_Node", node);
-    factory.registerNodeType<wmj::No_Limit_Shoot_Node>("No_Limit_Shoot_Node", node);
+    factory.registerNodeType<wmj::Track_Node>("Track_Node", node);
     factory.registerNodeType<wmj::Navigation_on_Node>("Navigation_on_Node", node);
     factory.registerNodeType<wmj::Navigation_off_Node>("Navigation_off_Node", node);
     // factory.registerNodeType<wmj::Navigation_back_Node>("Navigation_back_Node", node);
