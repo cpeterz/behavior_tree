@@ -23,6 +23,7 @@ namespace wmj
             // fs["init_game_timestamp"] >> this->game_msg.game_timestamp;
             fs["init_manual_top"] >> this->game_msg.manual_top;
             fs["init_game_start"] >> this->game_msg.game_start;
+            fs["init_navigation_status"] >> this->navigation_msg.navigation_status;
             fs["init_m_alive"] >> this->game_msg.m_alive;
             fs["init_enemy_alive"] >> this->game_msg.enemy_alive;
             fs["init_position"] >> this->navigation_msg.navigation_default_position;
@@ -46,6 +47,7 @@ namespace wmj
             break;
         case NAV: 
             fs["position"] >> this->navigation_msg.navigation_default_position;
+            fs["navigation_status"] >> this->navigation_msg.navigation_status;
             RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-navigation msg");
             break;
         case GAME:
@@ -123,6 +125,7 @@ namespace wmj
         navigation_msg.navigation_cur_orientation_y = msg->cur_position.pose.orientation.y;
         navigation_msg.navigation_cur_orientation_z = msg->cur_position.pose.orientation.z;
         navigation_msg.navigation_cur_orientation_w = msg->cur_position.pose.orientation.w;
+        navigation_msg.navigation_status = msg->navigation_status;
         navigation_msg.navigation_timestamp = msg->navigation_timestamp;
         RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Navigation msg get");
     }
@@ -158,6 +161,7 @@ namespace wmj
         ports_list.insert(BT::OutputPort<double>("navigation_cur_orientation_z"));
         ports_list.insert(BT::OutputPort<double>("navigation_cur_orientation_w"));
         ports_list.insert(BT::OutputPort<double>("navigation_timestamp"));
+        ports_list.insert(BT::OutputPort<int>("navigation_status"));
         ports_list.insert(BT::OutputPort<int>("default_position"));
 
         ports_list.insert(BT::OutputPort<int>("scan_mode"));
@@ -296,6 +300,7 @@ namespace wmj
         setOutput("navigation_cur_orientation_y", navigation_msg.navigation_cur_orientation_y);
         setOutput("navigation_cur_orientation_z", navigation_msg.navigation_cur_orientation_z);
         setOutput("navigation_cur_orientation_w", navigation_msg.navigation_cur_orientation_w);
+        setOutput("navigation_status", navigation_msg.navigation_status);
         setOutput("navigation_timestamp", navigation_msg.navigation_timestamp);
 
         setOutput("scan_mode", scan_mode);
@@ -1166,6 +1171,7 @@ namespace wmj
         port_lists.insert(BT::InputPort<double>("navigation_cur_orientation_y"));
         port_lists.insert(BT::InputPort<double>("navigation_cur_orientation_z"));
         port_lists.insert(BT::InputPort<double>("navigation_cur_orientation_w"));
+        port_lists.insert(BT::InputPort<int>("navigation_status"));
 
         port_lists.insert(BT::OutputPort<int>("bullet_rate"));
         port_lists.insert(BT::OutputPort<int>("scan_mode"));
@@ -1201,6 +1207,7 @@ namespace wmj
         auto hityaw = getInput<double>("hityaw");
         auto aimer_if_track = getInput<bool>("aimer_if_track");
         auto aimer_shootable = getInput<bool>("aimer_shootable");
+        auto navigation_status = getInput<int>("navigation_status");
         
         if (!armor_number)
         {
@@ -1265,8 +1272,8 @@ namespace wmj
 
         std::cout << "init_position:" << m_position << std::endl;
         
-        // 判断目标位置和当前位置的差距
-        if(m_position != -1)           
+        // 如果导航有目标位姿且导航节点认为自身未到达目标点，判断目标位置和当前位置的差距
+        if( m_position != -1 && navigation_status.value() == 0 )           
         {
             double goal_pose[2];
             double m_pose[2];
@@ -1279,7 +1286,7 @@ namespace wmj
             std::cout << "diff_pose_x:" << fabs(m_pose[0] - goal_pose[0]) << "  " << "diff_pose_y:" << fabs(m_pose[1] - goal_pose[1]) << std::endl;
             if( if_arrive == 0 )       // 如果当前未到达位置
             {         
-                if( fabs(m_pose[0] - goal_pose[0]) < 0.3 && fabs(m_pose[1] - goal_pose[1]) < 0.25)            // 未到达目标位置的情况下，25cm内认为已到目标位置，first_arrive置1
+                if( fabs(m_pose[0] - goal_pose[0]) < 0.3 && fabs(m_pose[1] - goal_pose[1]) < 0.25)               // 未到达目标位置的情况下，25cm内认为已到目标位置，first_arrive置1
                 {
                     if_arrive = 1;
                     m_position = -1;
@@ -1287,7 +1294,7 @@ namespace wmj
             }
             else                       // 如果已到达指定位置
             {
-                if( fabs(m_pose[0] - goal_pose[0]) < 0.6 && fabs(m_pose[1] - goal_pose[1]) < 0.5)               // 未到达目标位置的情况下，50cm内认为已到目标位置，first_arrive置1
+                if( fabs(m_pose[0] - goal_pose[0]) < 0.6 && fabs(m_pose[1] - goal_pose[1]) < 0.5)                // 未到达目标位置的情况下，50cm内认为已到目标位置，first_arrive置1
                 {
                     m_position = -1;
                 }
@@ -1298,8 +1305,19 @@ namespace wmj
             }
         }
 
+        if( navigation_status.value() == 1 && m_position == m_last_position )                                    // 如果导航节点认为自己已经到了且目标点一直未改变，则停止导航
+        {
+            if_arrive = 2;
+            m_position = -1;
+        }
+
+        if( navigation_status.value() == 2 )                               // 导航崩掉了则不会再进行导航
+        {
+            m_position = -1;             
+        }
+
         // 防止在补血点受到伤害后，误以为自身还有血量可补充，做的时间最大值退出
-        if( if_arrive == 1 && m_last_position == 1 )      // 如果我已经到达补血点
+        if( (if_arrive == 1 || if_arrive == 2) && m_last_position == 1 )      // 如果我已经到达补血点
         {
             std::cout << "blood_time:" << blood_time << std::endl;
             blood_time ++;
@@ -1353,10 +1371,11 @@ namespace wmj
         std::cout << "defend_last_position:" << m_last_position << std::endl;
         std::cout << "defend_position:" << m_position << std::endl;
         std::cout << "defend_if_arrive:" << if_arrive << std::endl;
-        std::cout << "scan_mode:" << scan_mode << std::endl;
+        std::cout << "defend_scan_mode:" << scan_mode << std::endl;
         // std::cout << "defend_hityaw:" << hityaw.value() << std::endl;
-        std::cout << "if_track:" << aimer_if_track.value() << std::endl;
-        std::cout << "shootable:" << aimer_shootable.value() << std::endl;
+        std::cout << "defend_if_track:" << aimer_if_track.value() << std::endl;
+        std::cout << "defend_shootable:" << aimer_shootable.value() << std::endl;
+        std::cout << "defend_navigation_status:" << navigation_status.value() << std::endl;
         
         if( m_position != -1)
         {

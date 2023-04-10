@@ -5,7 +5,7 @@ init_armor_number: 0             # 识别到的装甲板的数量
 init_armor_distance : 0        # 最近的装甲板的距离
 init_armor_timestamp : 0.        # 装甲板时间戳
 init_navigation_timestamp : 0.   # 导航事件戳
-init_navigation_status : -1      # 导航状态,默认不处于任何一个地方
+init_navigation_status : 1       # 导航状态,默认已到达目标点
 init_outpost_blood : 1000        # 前哨站血量
 init_sentry_blood : 600          # 哨兵血量
 init_bullet_num : 700            # 剩余子弹数目
@@ -35,6 +35,7 @@ position : 0                      # 收不到导航消息默认返回起始点
 hityaw : -1
 shootable : 0     
 if_track : 1           
+navigation_status : 1
 #出发点位置
 start_position_x : 3.578902244567871
 start_position_y : -3.01556658744812

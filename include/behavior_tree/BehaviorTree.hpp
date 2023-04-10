@@ -47,8 +47,8 @@ namespace wmj
     struct Navigation_msg
     {
         double navigation_timestamp;         // 导航事件戳
-        // int navigation_status;            // 当前导航状态，true表示正在移动
-        int navigation_default_position;             // 默认位置
+        int navigation_status;               // 导航状态信息，0表示没到目标点，1表示到达目标点，2表示导航崩了。
+        int navigation_default_position;     // 默认位置
         double navigation_cur_position_x;    // 当前导航位置
         double navigation_cur_position_y;
         double navigation_cur_position_z;
