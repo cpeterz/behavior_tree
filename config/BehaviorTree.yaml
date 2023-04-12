@@ -20,6 +20,8 @@ init_hityaw : -1.                # 初始化时未被击打
 init_shootable : 0     
 init_if_track : 0           
 init_aimer_timestamp : 0.  
+init_if_navigation : 1           # 默认开启导航，如果不想使用导航，则将其置为 0
+init_debug : 1
 #默认数据
 armor_number: 0   
 armor_distance : 0. 
@@ -37,32 +39,32 @@ shootable : 0
 if_track : -1           
 navigation_status : 2
 #出发点位置
-start_position_x : 3.578902244567871
-start_position_y : -3.01556658744812
+start_position_x : 0
+start_position_y : 0
 start_position_z : 0
 start_orientation_x : 0
 start_orientation_y : 0
-start_orientation_z : -0.3227323959072776
-start_orientation_w : 0.9464902538494246
+start_orientation_z : 0
+start_orientation_w : 0
 #补血点位置
-resume_position_x : 3.578902244567871
-resume_position_y : -3.01556658744812
-resume_position_z : 1
-resume_orientation_x : 1
-resume_orientation_y : 1
+resume_position_x : 1
+resume_position_y : 1
+resume_position_z : 0
+resume_orientation_x : 0
+resume_orientation_y : 0
 resume_orientation_z : -0.3227323959072776
 resume_orientation_w : 0.9464902538494246
 #增益点位置
-gain_position_x : 4.633669853210449
-gain_position_y : 2.4196085929870605
+gain_position_x : 2
+gain_position_y : 2
 gain_position_z : 2
 gain_orientation_x : 2
 gain_orientation_y : 2
 gain_orientation_z : -0.9399724581924976
 gain_orientation_w : 0.34125031551568313
 #视界点位置
-view_position_x : 0.20957046747207642
-view_position_y : 0.2425970733165741
+view_position_x : 3
+view_position_y : 3
 view_position_z : 3
 view_orientation_x : 3
 view_orientation_y : 3

@@ -30,6 +30,8 @@ namespace wmj
             fs["init_hityaw"] >> this->game_msg.hityaw;
             fs["init_shootable"] >> this->aimer_msg.aimer_shootable;
             fs["init_if_track"] >> this->aimer_msg.aimer_if_track;
+            fs["init_if_navigation"] >> this->if_navigation;
+            fs["init_debug"] >> this->m_debug;
             break;
         case ARMOR:
             // fs["armor_number"] >> this->armor_msg.armor_number;
@@ -89,7 +91,7 @@ namespace wmj
         armor_msg.armor_distance = msg->distance;
         armor_msg.armor_timestamp = msg->time_stamp;
         armor_msg.armor_number = msg->num;
-        RCLCPP_INFO(rclcpp::get_logger("get msg"), "Armor msg get");
+        RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Armor msg get");
     }
 
     void DataReadNode::aimer_call_back(const base_interfaces::msg::Aimer::SharedPtr msg)
@@ -97,8 +99,9 @@ namespace wmj
         // 更新装甲板数据
         aimer_msg.aimer_shootable = msg->shootable;
         aimer_msg.aimer_if_track = msg->is_track;
+        std::cout << "aimer_if_track:" <<  aimer_msg.aimer_if_track << std::endl;
         aimer_msg.aimer_timestamp = msg->timestamp;
-        RCLCPP_INFO(rclcpp::get_logger("get msg"), "Aimer msg get");
+        RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Aimer msg get");
     }
 
     void DataReadNode::game_call_back(const base_interfaces::msg::Game::SharedPtr msg)
@@ -173,93 +176,187 @@ namespace wmj
     {
         navigation_msg.navigation_default_position = -1;      // 默认导航位置在这里不改变，后面若收不到导航或者比赛信息将更新此值
         rclcpp::Rate loop_rate(10);   
-        while (last_game_timestamp == game_msg.game_timestamp)
+        if( !m_debug )
         {
-            if( game_msg_count == 0 )
+            while (last_game_timestamp == game_msg.game_timestamp)
             {
-                game_msg_count++;
-                break;
+                if( game_msg_count == 0 )
+                {
+                    game_msg_count++;
+                    break;
+                }
+                // 一秒内未收到消息则使用默认数据
+                if (m_waitGameMsgTime > 1000)
+                {
+                    game_msg_count++;
+                    readParam(BT_YAML, GAME);
+                    break;
+                }
+                loop_rate.sleep();    // 等待 100ms
+                m_waitGameMsgTime += 100 ;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Game Msg %lf ms", m_waitGameMsgTime);
             }
-            // 一秒内未收到消息则使用默认数据
-            if (m_waitGameMsgTime > 1000)
+            if (last_game_timestamp != game_msg.game_timestamp)
             {
-                game_msg_count++;
-                readParam(BT_YAML, GAME);
-                break;
+                m_waitGameMsgTime = 0;
             }
-            loop_rate.sleep();    // 等待 100ms
-            m_waitGameMsgTime += 100 ;
-            RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Game Msg %lf ms", m_waitGameMsgTime);
-        }
-        if (last_game_timestamp != game_msg.game_timestamp)
-        {
-            m_waitGameMsgTime = 0;
-        }
 
-        while (last_armor_timestamp == armor_msg.armor_timestamp)
-        {
-            if ( armor_msg_count == 0 )
+            while (last_armor_timestamp == armor_msg.armor_timestamp)
             {
-                armor_msg_count++;
-                break;
+                if ( armor_msg_count == 0 )
+                {
+                    armor_msg_count++;
+                    break;
+                }
+                if (m_waitArmorMsgTime > 1000 )
+                {
+                    armor_msg_count++;
+                    readParam(BT_YAML, ARMOR);
+                    break;
+                }
+                loop_rate.sleep();    // 等待 100ms
+                m_waitArmorMsgTime += 100 ;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Armor Msg %lf ms", m_waitArmorMsgTime);
             }
-            if (m_waitArmorMsgTime > 1000 )
+            if (last_armor_timestamp != armor_msg.armor_timestamp)
             {
-                armor_msg_count++;
-                readParam(BT_YAML, ARMOR);
-                break;
+                m_waitAimerMsgTime = 0;
             }
-            loop_rate.sleep();    // 等待 100ms
-            m_waitArmorMsgTime += 100 ;
-            RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Armor Msg %lf ms", m_waitArmorMsgTime);
-        }
-        if (last_armor_timestamp != armor_msg.armor_timestamp)
-        {
-            m_waitAimerMsgTime = 0;
-        }
 
-        while (last_aimer_timestamp == aimer_msg.aimer_timestamp)
-        {
-            if ( aimer_msg_count == 0 )
+            while (last_aimer_timestamp == aimer_msg.aimer_timestamp)
             {
-                aimer_msg_count++;
-                break;
+                if ( aimer_msg_count == 0 )
+                {
+                    aimer_msg_count++;
+                    break;
+                }
+                if (m_waitAimerMsgTime > 1000 )
+                {
+                    aimer_msg_count++;
+                    readParam(BT_YAML, SHOOT);
+                    break;
+                }
+                loop_rate.sleep();    // 等待 100ms
+                m_waitAimerMsgTime += 100 ;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Aimer Msg %lf ms", m_waitAimerMsgTime);
             }
-            if (m_waitAimerMsgTime > 1000 )
+            if (last_aimer_timestamp != aimer_msg.aimer_timestamp)
             {
-                aimer_msg_count++;
-                readParam(BT_YAML, SHOOT);
-                break;
+                m_waitAimerMsgTime = 0;
             }
-            loop_rate.sleep();    // 等待 100ms
-            m_waitAimerMsgTime += 100 ;
-            RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Aimer Msg %lf ms", m_waitAimerMsgTime);
-        }
-        if (last_aimer_timestamp != aimer_msg.aimer_timestamp)
-        {
-            m_waitAimerMsgTime = 0;
-        }
 
-        while (last_navigation_timestamp == navigation_msg.navigation_timestamp)
-        {
-            if(navigation_msg_count == 0)
+            while (last_navigation_timestamp == navigation_msg.navigation_timestamp)
             {
-                navigation_msg_count++;
-                break;
+                if(navigation_msg_count == 0)
+                {
+                    navigation_msg_count++;
+                    break;
+                }
+                if (m_waitNavigationMsgTime > 1000)
+                {
+                    navigation_msg_count++;
+                    readParam(BT_YAML, NAV);
+                    break;
+                }
+                loop_rate.sleep();    // 等待 100ms
+                m_waitNavigationMsgTime += 100 ;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for rqt Navigation Msg %lf ms", m_waitNavigationMsgTime);
             }
-            if (m_waitNavigationMsgTime > 1000)
+            if (last_navigation_timestamp != navigation_msg.navigation_timestamp)
             {
-                navigation_msg_count++;
-                readParam(BT_YAML, NAV);
-                break;
+                m_waitNavigationMsgTime = 0;
             }
-            loop_rate.sleep();    // 等待 100ms
-            m_waitNavigationMsgTime += 100 ;
-            RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Navigation Msg %lf ms", m_waitNavigationMsgTime);
         }
-        if (last_navigation_timestamp != navigation_msg.navigation_timestamp)
+        else
         {
-            m_waitNavigationMsgTime = 0;
+            while ( game_msg.game_timestamp == 1 )
+            {
+                if( game_msg_count == 0 )
+                {
+                    game_msg_count++;
+                    break;
+                }
+                // 一秒内未收到消息则使用默认数据
+                if (m_waitGameMsgTime > 1000)
+                {
+                    game_msg_count++;
+                    readParam(BT_YAML, GAME);
+                    break;
+                }
+                loop_rate.sleep();    // 等待 100ms
+                m_waitGameMsgTime += 100 ;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for rqt Game Msg %lf ms", m_waitGameMsgTime);
+            }
+            if ( game_msg.game_timestamp != 1)
+            {
+                m_waitGameMsgTime = 0;
+            }
+
+            while ( armor_msg.armor_timestamp == 1 )
+            {
+                if ( armor_msg_count == 0 )
+                {
+                    armor_msg_count++;
+                    break;
+                }
+                if (m_waitArmorMsgTime > 1000 )
+                {
+                    armor_msg_count++;
+                    readParam(BT_YAML, ARMOR);
+                    break;
+                }
+                loop_rate.sleep();    // 等待 100ms
+                m_waitArmorMsgTime += 100 ;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for rqt Armor Msg %lf ms", m_waitArmorMsgTime);
+            }
+            if ( armor_msg.armor_timestamp != 1 )
+            {
+                m_waitAimerMsgTime = 0;
+            }
+
+            while ( aimer_msg.aimer_timestamp == 1 )
+            {
+                if ( aimer_msg_count == 0 )
+                {
+                    aimer_msg_count++;
+                    break;
+                }
+                if (m_waitAimerMsgTime > 1000 )
+                {
+                    aimer_msg_count++;
+                    readParam(BT_YAML, SHOOT);
+                    break;
+                }
+                loop_rate.sleep();    // 等待 100ms
+                m_waitAimerMsgTime += 100 ;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for rqt Aimer Msg %lf ms", m_waitAimerMsgTime);
+            }
+            if ( aimer_msg.aimer_timestamp != 1)
+            {
+                m_waitAimerMsgTime = 0;
+            }
+
+            while ( navigation_msg.navigation_timestamp == 1)
+            {
+                if(navigation_msg_count == 0)
+                {
+                    navigation_msg_count++;
+                    break;
+                }
+                if (m_waitNavigationMsgTime > 1000)
+                {
+                    navigation_msg_count++;
+                    readParam(BT_YAML, NAV);
+                    break;
+                }
+                loop_rate.sleep();    // 等待 100ms
+                m_waitNavigationMsgTime += 100 ;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for rqt Navigation Msg %lf ms", m_waitNavigationMsgTime);
+            }
+            if ( navigation_msg.navigation_timestamp != 1)
+            {
+                m_waitNavigationMsgTime = 0;
+            }
         }
         // std::cout << "armor_msg.armor_timestamp:" << armor_msg.armor_timestamp << std::endl;
         // std::cout << "navigation_msg.navigation_timestamp:" << navigation_msg.navigation_timestamp << std::endl;
@@ -270,7 +367,13 @@ namespace wmj
         last_game_timestamp = game_msg.game_timestamp;
         last_navigation_timestamp = navigation_msg.navigation_timestamp;
         last_aimer_timestamp = aimer_msg.aimer_timestamp;
+
+        if( !if_navigation )
+        {
+            navigation_msg.navigation_status = 2;
+        }
         int scan_mode = 0;
+
         
         setOutput("default_position", navigation_msg.navigation_default_position);
 
@@ -1334,7 +1437,7 @@ namespace wmj
         {
             std::cout << "blood_time:" << blood_time << std::endl;
             blood_time ++;
-            if( blood_time > 60 )  // 如果50帧都没有离开补血区域，则认为已经没有可以补充的血量。 15s TimeOut
+            if( blood_time > 30 )  // 如果50帧都没有离开补血区域，则认为已经没有可以补充的血量。 15s TimeOut
             {
                 total_blood = 600;
             }
@@ -1363,7 +1466,7 @@ namespace wmj
         }
         else if(aimer_if_track.value() == 0 && m_last_track == 1)
         {
-            if( m_lost_detect_count < 30 )   // 90度扫7.5s
+            if( m_lost_detect_count < 15 )   // 90度扫7.5s
             {
                 m_position = -1;
                 bullet_rate = 20;

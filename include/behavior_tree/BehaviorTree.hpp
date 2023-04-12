@@ -129,6 +129,8 @@ namespace wmj
         double m_waitNavigationMsgTime = 0;      // 等待导航信息消息时间
         double m_waitArmorMsgTime = 0;           // 等待装甲板消息时间
         double m_waitAimerMsgTime = 0;
+        bool if_navigation = true;
+        bool m_debug = false;
 
         rclcpp::Subscription<base_interfaces::msg::Armors>::SharedPtr sub_armors;         // 装甲板信息订阅者
         rclcpp::Subscription<base_interfaces::msg::Aimer>::SharedPtr sub_aimer;           // 自瞄信息订阅者
