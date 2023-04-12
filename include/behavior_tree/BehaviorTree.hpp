@@ -130,7 +130,9 @@ namespace wmj
         double m_waitArmorMsgTime = 0;           // 等待装甲板消息时间
         double m_waitAimerMsgTime = 0;
         bool if_navigation = true;
-        bool m_debug = false;
+        bool debug_game = false;
+        bool debug_all = false;
+        bool first_time = true;
 
         rclcpp::Subscription<base_interfaces::msg::Armors>::SharedPtr sub_armors;         // 装甲板信息订阅者
         rclcpp::Subscription<base_interfaces::msg::Aimer>::SharedPtr sub_aimer;           // 自瞄信息订阅者
@@ -314,6 +316,7 @@ namespace wmj
         BT::NodeStatus tick() override;
         int final_last_position = -1;          
         int time_count = 0;
+        int out_time = 0;
     };
 
     /**
@@ -504,7 +507,8 @@ namespace wmj
         //  * @return PoseStamped 目标位置，四元数类型
         // */
         // geometry_msgs::msg::PoseStamped GetPosition(double goal_position[3][2]);
-        int m_last_position = -1;       // 我的上一个目标地点
+        int m_goal_position = -1;       // 我的目标地点
+        int m_last_position = -1;       // 我上一次的目标点，即本次出发点
         int total_blood = 0;            // 总共恢复血量
         int last_blood = 600;           // 上一时刻哨兵血量
         int if_arrive = 0;              // 是否到达的标志位，与防抖相适应,1为已到达，0为未到达

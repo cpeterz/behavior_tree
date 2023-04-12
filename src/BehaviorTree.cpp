@@ -11,16 +11,16 @@ namespace wmj
             RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get init msg");
             fs["init_armor_number"] >> this->armor_msg.armor_number;
             fs["init_armor_distance"] >> this->armor_msg.armor_distance;
-            // fs["init_armor_timestamp"] >> this->armor_msg.armor_timestamp;
+            fs["init_armor_timestamp"] >> this->armor_msg.armor_timestamp;
             fs["init_aimer_if_track"] >> this->aimer_msg.aimer_if_track;
             fs["init_aimer_shootable"] >> this->aimer_msg.aimer_shootable;
-            // fs["init_aimer_timestamp"] >> this->aimer_msg.aimer_timestamp;
-            // fs["init_navigation_timestamp"] >> this->navigation_msg.navigation_timestamp;
+            fs["init_aimer_timestamp"] >> this->aimer_msg.aimer_timestamp;
+            fs["init_navigation_timestamp"] >> this->navigation_msg.navigation_timestamp;
             fs["init_outpost_blood"] >> this->game_msg.outpost_blood;
             fs["init_sentry_blood"] >> this->game_msg.sentry_blood;
             fs["init_bullet_num"] >> this->game_msg.bullet_num;
             fs["init_time_left"] >> this->game_msg.time_left;
-            // fs["init_game_timestamp"] >> this->game_msg.game_timestamp;
+            fs["init_game_timestamp"] >> this->game_msg.game_timestamp;
             fs["init_manual_top"] >> this->game_msg.manual_top;
             fs["init_game_start"] >> this->game_msg.game_start;
             fs["init_navigation_status"] >> this->navigation_msg.navigation_status;
@@ -31,7 +31,8 @@ namespace wmj
             fs["init_shootable"] >> this->aimer_msg.aimer_shootable;
             fs["init_if_track"] >> this->aimer_msg.aimer_if_track;
             fs["init_if_navigation"] >> this->if_navigation;
-            fs["init_debug"] >> this->m_debug;
+            fs["init_debug_game"] >> this->debug_game;
+            fs["init_debug_all"] >> this->debug_all;
             break;
         case ARMOR:
             // fs["armor_number"] >> this->armor_msg.armor_number;
@@ -166,6 +167,7 @@ namespace wmj
         ports_list.insert(BT::OutputPort<double>("navigation_timestamp"));
         ports_list.insert(BT::OutputPort<int>("navigation_status"));
         ports_list.insert(BT::OutputPort<int>("default_position"));
+        ports_list.insert(BT::OutputPort<int>("navigation_timeout"));
 
         ports_list.insert(BT::OutputPort<int>("scan_mode"));
 
@@ -176,7 +178,9 @@ namespace wmj
     {
         navigation_msg.navigation_default_position = -1;      // 默认导航位置在这里不改变，后面若收不到导航或者比赛信息将更新此值
         rclcpp::Rate loop_rate(10);   
-        while (last_armor_timestamp == armor_msg.armor_timestamp)
+        if( !debug_all )
+        {
+            while (last_armor_timestamp == armor_msg.armor_timestamp)
             {
                 if ( armor_msg_count == 0 )
                 {
@@ -241,33 +245,130 @@ namespace wmj
             {
                 m_waitNavigationMsgTime = 0;
             }
-        if( !m_debug )
-        {
-            while (last_game_timestamp == game_msg.game_timestamp)
+            if( !debug_game )
             {
-                if( game_msg_count == 0 )
+                while (last_game_timestamp == game_msg.game_timestamp)
                 {
-                    game_msg_count++;
-                    break;
+                    if( game_msg_count == 0 )
+                    {
+                        game_msg_count++;
+                        break;
+                    }
+                    // 一秒内未收到消息则使用默认数据
+                    if (m_waitGameMsgTime > 1000)
+                    {
+                        game_msg_count++;
+                        readParam(BT_YAML, GAME);
+                        break;
+                    }
+                    loop_rate.sleep();    // 等待 100ms
+                    m_waitGameMsgTime += 100 ;
+                    RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Game Msg %lf ms", m_waitGameMsgTime);
                 }
-                // 一秒内未收到消息则使用默认数据
-                if (m_waitGameMsgTime > 1000)
+                if (last_game_timestamp != game_msg.game_timestamp)
                 {
-                    game_msg_count++;
-                    readParam(BT_YAML, GAME);
-                    break;
+                    m_waitGameMsgTime = 0;
                 }
-                loop_rate.sleep();    // 等待 100ms
-                m_waitGameMsgTime += 100 ;
-                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Game Msg %lf ms", m_waitGameMsgTime);
             }
-            if (last_game_timestamp != game_msg.game_timestamp)
+            else
             {
-                m_waitGameMsgTime = 0;
+                RCLCPP_INFO(rclcpp::get_logger("INFO"), " debug game !!!!!!!!!!!!!");
+                while ( game_msg.game_timestamp == 1 )
+                {
+                    if( game_msg_count == 0 )
+                    {
+                        game_msg_count++;
+                        break;
+                    }
+                    // 一秒内未收到消息则使用默认数据
+                    if (m_waitGameMsgTime > 1000)
+                    {
+                        game_msg_count++;
+                        readParam(BT_YAML, GAME);
+                        break;
+                    }
+                    loop_rate.sleep();    // 等待 100ms
+                    m_waitGameMsgTime += 100 ;
+                    RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for rqt Game Msg %lf ms", m_waitGameMsgTime);
+                }
+                if ( game_msg.game_timestamp != 1 )
+                {
+                    m_waitGameMsgTime = 0;
+                    RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Get debug Game info");
+                }
             }
         }
         else
         {
+            RCLCPP_INFO(rclcpp::get_logger("INFO"), " debug all !!!!!!!!!!!!!");
+            while (armor_msg.armor_timestamp == 1)
+            {
+                if ( armor_msg_count == 0 )
+                {
+                    armor_msg_count++;
+                    break;
+                }
+                if (m_waitArmorMsgTime > 1000 )
+                {
+                    armor_msg_count++;
+                    readParam(BT_YAML, ARMOR);
+                    break;
+                }
+                loop_rate.sleep();    // 等待 100ms
+                m_waitArmorMsgTime += 100 ;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Armor Msg %lf ms", m_waitArmorMsgTime);
+            }
+            if ( armor_msg.armor_timestamp != 1 )
+            {
+                m_waitAimerMsgTime = 0;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Get debug Armor info");
+            }
+
+            while ( aimer_msg.aimer_timestamp == 1 )
+            {
+                if ( aimer_msg_count == 0 )
+                {
+                    aimer_msg_count++;
+                    break;
+                }
+                if (m_waitAimerMsgTime > 1000 )
+                {
+                    aimer_msg_count++;
+                    readParam(BT_YAML, SHOOT);
+                    break;
+                }
+                loop_rate.sleep();    // 等待 100ms
+                m_waitAimerMsgTime += 100 ;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Aimer Msg %lf ms", m_waitAimerMsgTime);
+            }
+            if ( aimer_msg.aimer_timestamp != 1 )
+            {
+                m_waitAimerMsgTime = 0;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Get debug Aimer info");
+            }
+
+            while ( navigation_msg.navigation_timestamp == 1 )
+            {
+                if(navigation_msg_count == 0)
+                {
+                    navigation_msg_count++;
+                    break;
+                }
+                if (m_waitNavigationMsgTime > 1000)
+                {
+                    navigation_msg_count++;
+                    readParam(BT_YAML, NAV);
+                    break;
+                }
+                loop_rate.sleep();    // 等待 100ms
+                m_waitNavigationMsgTime += 100 ;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for rqt Navigation Msg %lf ms", m_waitNavigationMsgTime);
+            }
+            if ( navigation_msg.navigation_timestamp != 1 )
+            {
+                m_waitNavigationMsgTime = 0;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Get debug Navigation info");
+            }
             while ( game_msg.game_timestamp == 1 )
             {
                 if( game_msg_count == 0 )
@@ -289,7 +390,7 @@ namespace wmj
             if ( game_msg.game_timestamp != 1)
             {
                 m_waitGameMsgTime = 0;
-                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Get debug info");
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Get debug Game info");
             }
         }
         // std::cout << "armor_msg.armor_timestamp:" << armor_msg.armor_timestamp << std::endl;
@@ -308,6 +409,12 @@ namespace wmj
         }
         int scan_mode = 0;
 
+        if( first_time )
+        {
+            int navigation_timeout = 0;
+            first_time = false;
+            setOutput("navigation_timeout", navigation_timeout);
+        }
         
         setOutput("default_position", navigation_msg.navigation_default_position);
 
@@ -495,6 +602,7 @@ namespace wmj
         BT::PortsList port_lists;
 
         port_lists.insert(BT::InputPort<int>("position"));
+        port_lists.insert(BT::OutputPort<int>("navigation_timeout"));
         
         return port_lists;
     }
@@ -596,20 +704,31 @@ namespace wmj
 
         if( msg.navigation_continue == 2 )                        // 导航状态内10帧还未抵达目的地，将再次命令导航开启规划
         {
-            time_count ++ ;
-            if( time_count > 20)
+            time_count++;
+            if( time_count > 15)
             {
                 msg.navigation_continue = 1;
                 time_count = 0;
+                out_time ++;
             }
         }
         else
         {
+            out_time = 0;
             time_count = 0;
+        }
+
+        int navigation_timeout = 0;
+        if( out_time == 4 )
+        {
+            navigation_timeout = 1;
+            setOutput("navigation_timeout", navigation_timeout);
         }
         
         msg.bt_navigation_timestamp = wmj::now();
-        std::cout << "navigation_on_count:" << time_count << std::endl;
+        std::cout << "navigation_on_time_count:" << time_count << std::endl;
+        std::cout << "navigation_on_out_time_count:" << out_time << std::endl;
+        std::cout << "navigation_on_timeout:" << navigation_timeout << std::endl;
         final_last_position = position.value();
 
         std::cout << "sent_navigation_continue:" << msg.navigation_continue << std::endl;
@@ -1218,6 +1337,7 @@ namespace wmj
         port_lists.insert(BT::OutputPort<int>("scan_mode"));
         port_lists.insert(BT::OutputPort<int>("position"));
         port_lists.insert(BT::InputPort<int>("default_position"));
+        port_lists.insert(BT::InputPort<int>("navigation_timeout"));
 
         return port_lists;
     }
@@ -1249,6 +1369,7 @@ namespace wmj
         auto aimer_if_track = getInput<int>("aimer_if_track");
         auto aimer_shootable = getInput<bool>("aimer_shootable");
         auto navigation_status = getInput<int>("navigation_status");
+        auto navigation_timeout = getInput<int>("navigation_timeout");
         
         if (!armor_number)
         {
@@ -1294,7 +1415,7 @@ namespace wmj
             m_position = 1;            // 补血前一分钟，如果补血点还有血并且自身状态未满，则前往补血点
         }
 
-        if( m_last_position == 1 && total_blood < 600 && time_left.value() > 60 && sentry_blood.value() < 600)
+        if( m_goal_position == 1 && total_blood < 600 && time_left.value() > 60 && sentry_blood.value() < 600)
         {
             m_position = 1;            // 在补血点补满血量后才会离开
         }
@@ -1304,8 +1425,6 @@ namespace wmj
         {
             m_position = 2;
         }
-
-        std::cout << "init_position:" << m_position << std::endl;
 
         if( aimer_if_track.value() == -1 )           // 自瞄信息收不到后会将默认位置改为出发点
         {
@@ -1325,9 +1444,15 @@ namespace wmj
             m_position = default_position.value();
         }
 
-        
+        std::cout << "init_position:" << m_position << std::endl;
+
+        if( navigation_status.value() == 1 )                                    // 如果导航节点认为自己已经到了且目标点一直未改变，则停止导航
+        {
+            if_arrive = 2;
+        }
+
         // 如果导航有目标位姿且导航节点认为自身未到达目标点，判断目标位置和当前位置的差距
-        if( m_position != -1 && navigation_status.value() == 0 )           
+        if( m_position != -1 )           
         {
             double goal_pose[2];
             double m_pose[2];
@@ -1340,15 +1465,15 @@ namespace wmj
             std::cout << "diff_pose_x:" << fabs(m_pose[0] - goal_pose[0]) << "  " << "diff_pose_y:" << fabs(m_pose[1] - goal_pose[1]) << std::endl;
             if( if_arrive == 0 )       // 如果当前未到达位置
             {         
-                if( fabs(m_pose[0] - goal_pose[0]) < 0.3 && fabs(m_pose[1] - goal_pose[1]) < 0.25)               // 未到达目标位置的情况下，25cm内认为已到目标位置，first_arrive置1
+                if( fabs(m_pose[0] - goal_pose[0]) < 0.3 && fabs(m_pose[1] - goal_pose[1]) < 0.3)               // 未到达目标位置的情况下，25cm内认为已到目标位置，first_arrive置1
                 {
                     if_arrive = 1;
                     m_position = -1;
                 }
             }
-            else                       // 如果已到达指定位置
+            else                      // 如果已到达指定位置
             {
-                if( fabs(m_pose[0] - goal_pose[0]) < 0.6 && fabs(m_pose[1] - goal_pose[1]) < 0.5)                // 未到达目标位置的情况下，50cm内认为已到目标位置，first_arrive置1
+                if( fabs(m_pose[0] - goal_pose[0]) < 0.68 && fabs(m_pose[1] - goal_pose[1]) < 0.68 )                // 未到达目标位置的情况下，50cm内认为已到目标位置，first_arrive置1
                 {
                     m_position = -1;
                 }
@@ -1359,23 +1484,19 @@ namespace wmj
             }
         }
 
-        if( navigation_status.value() == 1 && m_position == m_last_position )                                    // 如果导航节点认为自己已经到了且目标点一直未改变，则停止导航
-        {
-            if_arrive = 2;
-            m_position = -1;
-        }
-
-        if( navigation_status.value() == 2 )                               // 导航崩掉了则不会再进行导航
+        if( navigation_status.value() == 2 || navigation_timeout.value() == 1 )                               // 导航崩掉了则不会再进行导航
         {
             m_position = -1;             
+            m_last_position = -1;
+            m_goal_position = -1;
         }
 
         // 防止在补血点受到伤害后，误以为自身还有血量可补充，做的时间最大值退出
-        if( (if_arrive == 1 || if_arrive == 2) && m_last_position == 1 )      // 如果我已经到达补血点
+        if( if_arrive != 0 && m_goal_position == 1 )      // 如果我已经到达补血点
         {
             std::cout << "blood_time:" << blood_time << std::endl;
             blood_time ++;
-            if( blood_time > 30 )  // 如果50帧都没有离开补血区域，则认为已经没有可以补充的血量。 15s TimeOut
+            if( blood_time > 30 )  // 如果30帧都没有离开补血区域，则认为已经没有可以补充的血量。 15s TimeOut
             {
                 total_blood = 600;
             }
@@ -1385,41 +1506,71 @@ namespace wmj
             blood_time = 0;
         }
 
-        // 被打了不会导航,除非是回补血点
-        if( blood_diff <= -5 && (m_last_position != 1 || m_position != 1))
+             
+        int m_last_goal_position = m_goal_position;
+        if( m_position != -1)                                                // 记录本次目标点
+        {
+            m_goal_position = m_position;
+        }
+
+        if( m_last_goal_position != -1 && m_goal_position != m_last_goal_position )         // 记录上一此目标点   
+        {
+            m_last_position = m_last_goal_position;
+        } 
+        
+
+        // 被打了不会导航,除非是回补血点或者在补血点出发，但如果从补血点出发到了目标位置后，会继续反击
+        if( blood_diff <= -5  )
+        {
             detect_time = 15;
-        if(detect_time >= 0)
+        }
+        if( m_goal_position == 1 || (m_last_position == 1 && ( m_goal_position != 1 && if_arrive != 0 )))
+        {
+            detect_time = 0;
+        }
+       if(detect_time > 0)
         {
             detect_time--;
             m_position = -1;
-        }
+        } 
+        std::cout << "defend_detect_time:" << detect_time << std::endl;
 
         int scan_mode = 0;
         int bullet_rate = -1;
 
+        //  丢失别后扫描逻辑
         if( aimer_if_track.value() == 1 )
         {
             m_position = -1;
             bullet_rate = 20;
-            m_last_track = true;
-            m_lost_detect_count = 0;
+            m_last_track = 1;
+            m_lost_detect_count = 0;           // 每次识别到后重置扫描时间
         }
-        else if(aimer_if_track.value() == 0 && m_last_track == 1 && (m_last_position != 1 || m_position != 1))
+        else if(aimer_if_track.value() == 0 && m_last_track == 1 )     
         {
-            if( m_lost_detect_count < 15 )   // 90度扫7.5s
+            if( m_goal_position != 1  && ( m_last_position != 1 || ( m_last_position == 1 && if_arrive != 0 )))  // 丢失别后开启扫描，如果去往1或者从1出发则不会激发此效果，若从1出发但到达目标点后则可以激发  
             {
-                m_position = -1;
-                bullet_rate = 20;
-                m_lost_detect_count++;
-                scan_mode = 2;
+                if( m_lost_detect_count < 15 )   // 90度扫7.5s
+                {
+                    m_position = -1;
+                    bullet_rate = 20;
+                    m_lost_detect_count++;
+                    scan_mode = 2;
+                }
+                else
+                {
+                    m_last_track = 0;
+                    m_lost_detect_count = 0;
+                }
             }
             else
             {
                 m_last_track = 0;
                 m_lost_detect_count = 0;
             }
-        
         }
+        std::cout << "defend_m_lost_detect_count:" << m_lost_detect_count << std::endl;
+        
         last_blood = sentry_blood.value();
         
         std::cout << "defend_total_blood:" << total_blood << std::endl;
@@ -1427,6 +1578,7 @@ namespace wmj
         std::cout << "defend_armor_number:" << armor_number.value() << std::endl;
         std::cout << "defend_armor_distance:" << armor_distance.value() << std::endl;
         std::cout << "defend_bullet_rate:" << bullet_rate << std::endl;
+        std::cout << "defend_goal_position:" << m_goal_position << std::endl;
         std::cout << "defend_last_position:" << m_last_position << std::endl;
         std::cout << "defend_position:" << m_position << std::endl;
         std::cout << "defend_if_arrive:" << if_arrive << std::endl;
@@ -1435,12 +1587,8 @@ namespace wmj
         std::cout << "defend_if_track:" << aimer_if_track.value() << std::endl;
         std::cout << "defend_shootable:" << aimer_shootable.value() << std::endl;
         std::cout << "defend_navigation_status:" << navigation_status.value() << std::endl;
-        
-        if( m_position != -1)
-        {
-            m_last_position = m_position;
-        }
- 
+        std::cout << "defend_navigation_timeout:" << navigation_timeout.value() << std::endl;
+
         setOutput("bullet_rate", bullet_rate);
         setOutput("position", m_position);
         setOutput("scan_mode", scan_mode);

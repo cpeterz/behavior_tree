@@ -3,14 +3,14 @@
 #初始化数据
 init_armor_number: 0             # 识别到的装甲板的数量
 init_armor_distance : 0        # 最近的装甲板的距离
-init_armor_timestamp : 0.        # 装甲板时间戳
-init_navigation_timestamp : 0.   # 导航事件戳
+init_armor_timestamp : 1        # 装甲板时间戳
+init_navigation_timestamp : 1   # 导航事件戳
 init_navigation_status : 1       # 导航状态,默认已到达目标点
 init_outpost_blood : 1000        # 前哨站血量
 init_sentry_blood : 600          # 哨兵血量
 init_bullet_num : 700            # 剩余子弹数目
 init_time_left : 300             # 剩余比赛时间
-init_game_timestamp : 0.         # 比赛状况事件戳
+init_game_timestamp : 1          # 比赛状况事件戳
 init_manual_top : 0              # 是否手动开启小陀螺
 init_game_start : 0              # 默认比赛已经开启,true则已开始
 init_m_alive : 2                 # 我方存活机器人
@@ -19,9 +19,10 @@ init_position : -1               # 初始化不移动
 init_hityaw : -1.                # 初始化时未被击打
 init_shootable : 0     
 init_if_track : 0           
-init_aimer_timestamp : 0.  
+init_aimer_timestamp : 1
 init_if_navigation : 1           # 默认开启导航，如果不想使用导航，则将其置为 0
-init_debug : 1
+init_debug_game : 0              # Game rqt输入，其他节点正常传输
+init_debug_all : 1               # 所有数据 rqt 输入
 #默认数据
 armor_number: 0   
 armor_distance : 0. 
