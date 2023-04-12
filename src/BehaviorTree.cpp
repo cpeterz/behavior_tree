@@ -663,11 +663,15 @@ namespace wmj
         if( msg.navigation_continue == 2 )                        // 导航状态内10帧还未抵达目的地，将再次命令导航开启规划
         {
             time_count ++ ;
-            if( time_count > 20)
+            if( time_count > 15)
             {
                 msg.navigation_continue = 1;
                 time_count = 0;
             }
+        }
+        else
+        {
+            time_count = 0;
         }
         
         msg.bt_navigation_timestamp = wmj::now();
