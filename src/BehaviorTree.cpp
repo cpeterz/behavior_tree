@@ -1464,7 +1464,7 @@ namespace wmj
             m_last_track = true;
             m_lost_detect_count = 0;
         }
-        else if(aimer_if_track.value() == 0 && m_last_track == 1)
+        else if(aimer_if_track.value() == 0 && m_last_track == 1 && m_last_position != 1)
         {
             if( m_lost_detect_count < 15 )   // 90度扫7.5s
             {
