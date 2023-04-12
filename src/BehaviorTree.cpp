@@ -1325,7 +1325,7 @@ namespace wmj
         {
             total_blood += blood_diff;
         }
-        last_blood = sentry_blood.value();
+
 
         int m_position = 3;  // 默认导航前往视界位置
 
@@ -1447,16 +1447,18 @@ namespace wmj
             blood_time = 0;
         }
 
-        // 被打了不会导航
-        // if( hityaw.value() > 0 )
-        //     detect_time = 15;
-        // if(detect_time >= 0)
-        // {
-        //     detect_time--;
-        //     m_position = -1;
-        // }
+        // 被打了不会导航,除非是回补血点
+        if( blood_diff <= -5 && (m_last_position != 1 || m_position != 1))
+            detect_time = 15;
+        if(detect_time >= 0)
+        {
+            detect_time--;
+            m_position = -1;
+        }
+
         int scan_mode = 0;
         int bullet_rate = -1;
+
         if( aimer_if_track.value() == 1 )
         {
             m_position = -1;
@@ -1464,7 +1466,7 @@ namespace wmj
             m_last_track = true;
             m_lost_detect_count = 0;
         }
-        else if(aimer_if_track.value() == 0 && m_last_track == 1 && m_last_position != 1)
+        else if(aimer_if_track.value() == 0 && m_last_track == 1 && (m_last_position != 1 || m_position != 1))
         {
             if( m_lost_detect_count < 15 )   // 90度扫7.5s
             {
@@ -1480,8 +1482,10 @@ namespace wmj
             }
         
         }
+        last_blood = sentry_blood.value();
         
         std::cout << "defend_total_blood:" << total_blood << std::endl;
+        std::cout << "blood_diff:" << blood_diff << std::endl;
         std::cout << "defend_armor_number:" << armor_number.value() << std::endl;
         std::cout << "defend_armor_distance:" << armor_distance.value() << std::endl;
         std::cout << "defend_bullet_rate:" << bullet_rate << std::endl;
