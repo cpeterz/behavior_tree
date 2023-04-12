@@ -176,32 +176,7 @@ namespace wmj
     {
         navigation_msg.navigation_default_position = -1;      // 默认导航位置在这里不改变，后面若收不到导航或者比赛信息将更新此值
         rclcpp::Rate loop_rate(10);   
-        if( !m_debug )
-        {
-            while (last_game_timestamp == game_msg.game_timestamp)
-            {
-                if( game_msg_count == 0 )
-                {
-                    game_msg_count++;
-                    break;
-                }
-                // 一秒内未收到消息则使用默认数据
-                if (m_waitGameMsgTime > 1000)
-                {
-                    game_msg_count++;
-                    readParam(BT_YAML, GAME);
-                    break;
-                }
-                loop_rate.sleep();    // 等待 100ms
-                m_waitGameMsgTime += 100 ;
-                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Game Msg %lf ms", m_waitGameMsgTime);
-            }
-            if (last_game_timestamp != game_msg.game_timestamp)
-            {
-                m_waitGameMsgTime = 0;
-            }
-
-            while (last_armor_timestamp == armor_msg.armor_timestamp)
+        while (last_armor_timestamp == armor_msg.armor_timestamp)
             {
                 if ( armor_msg_count == 0 )
                 {
@@ -266,6 +241,30 @@ namespace wmj
             {
                 m_waitNavigationMsgTime = 0;
             }
+        if( !m_debug )
+        {
+            while (last_game_timestamp == game_msg.game_timestamp)
+            {
+                if( game_msg_count == 0 )
+                {
+                    game_msg_count++;
+                    break;
+                }
+                // 一秒内未收到消息则使用默认数据
+                if (m_waitGameMsgTime > 1000)
+                {
+                    game_msg_count++;
+                    readParam(BT_YAML, GAME);
+                    break;
+                }
+                loop_rate.sleep();    // 等待 100ms
+                m_waitGameMsgTime += 100 ;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for Game Msg %lf ms", m_waitGameMsgTime);
+            }
+            if (last_game_timestamp != game_msg.game_timestamp)
+            {
+                m_waitGameMsgTime = 0;
+            }
         }
         else
         {
@@ -290,72 +289,7 @@ namespace wmj
             if ( game_msg.game_timestamp != 1)
             {
                 m_waitGameMsgTime = 0;
-            }
-
-            while ( armor_msg.armor_timestamp == 1 )
-            {
-                if ( armor_msg_count == 0 )
-                {
-                    armor_msg_count++;
-                    break;
-                }
-                if (m_waitArmorMsgTime > 1000 )
-                {
-                    armor_msg_count++;
-                    readParam(BT_YAML, ARMOR);
-                    break;
-                }
-                loop_rate.sleep();    // 等待 100ms
-                m_waitArmorMsgTime += 100 ;
-                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for rqt Armor Msg %lf ms", m_waitArmorMsgTime);
-            }
-            if ( armor_msg.armor_timestamp != 1 )
-            {
-                m_waitAimerMsgTime = 0;
-            }
-
-            while ( aimer_msg.aimer_timestamp == 1 )
-            {
-                if ( aimer_msg_count == 0 )
-                {
-                    aimer_msg_count++;
-                    break;
-                }
-                if (m_waitAimerMsgTime > 1000 )
-                {
-                    aimer_msg_count++;
-                    readParam(BT_YAML, SHOOT);
-                    break;
-                }
-                loop_rate.sleep();    // 等待 100ms
-                m_waitAimerMsgTime += 100 ;
-                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for rqt Aimer Msg %lf ms", m_waitAimerMsgTime);
-            }
-            if ( aimer_msg.aimer_timestamp != 1)
-            {
-                m_waitAimerMsgTime = 0;
-            }
-
-            while ( navigation_msg.navigation_timestamp == 1)
-            {
-                if(navigation_msg_count == 0)
-                {
-                    navigation_msg_count++;
-                    break;
-                }
-                if (m_waitNavigationMsgTime > 1000)
-                {
-                    navigation_msg_count++;
-                    readParam(BT_YAML, NAV);
-                    break;
-                }
-                loop_rate.sleep();    // 等待 100ms
-                m_waitNavigationMsgTime += 100 ;
-                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Waiting for rqt Navigation Msg %lf ms", m_waitNavigationMsgTime);
-            }
-            if ( navigation_msg.navigation_timestamp != 1)
-            {
-                m_waitNavigationMsgTime = 0;
+                RCLCPP_INFO(rclcpp::get_logger("WAIT INFO"), "Get debug info");
             }
         }
         // std::cout << "armor_msg.armor_timestamp:" << armor_msg.armor_timestamp << std::endl;
