@@ -18,14 +18,14 @@ init_enemy_alive : 2             # 敌方存活机器人
 init_position : -1               # 初始化不移动
 init_hityaw : -1.                # 初始化时未被击打
 init_shootable : 0     
-init_if_track : 1           
+init_if_track : 0           
 init_aimer_timestamp : 0.  
 #默认数据
 armor_number: 0   
 armor_distance : 0. 
 outpost_blood : 1000 
 sentry_blood : 600
-time_left : 500 
+time_left : 50
 bullet_num : 700 
 manual_top : 1   
 game_start: 1
@@ -34,8 +34,8 @@ enemy_alive : 2
 position : 0                      # 收不到导航消息默认返回起始点
 hityaw : -1
 shootable : 0     
-if_track : 1           
-navigation_status : 1
+if_track : -1           
+navigation_status : 2
 #出发点位置
 start_position_x : 3.578902244567871
 start_position_y : -3.01556658744812

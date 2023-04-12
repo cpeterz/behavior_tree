@@ -36,7 +36,7 @@ namespace wmj
     */
    struct Aimer_msg
    {
-        bool aimer_if_track;     // 是否跟踪
+        int aimer_if_track;     // 是否跟踪
         bool aimer_shootable;    // 是否发射
         double aimer_timestamp;  // 自瞄时间戳
    };

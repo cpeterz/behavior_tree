@@ -32,10 +32,10 @@ namespace wmj
             fs["init_if_track"] >> this->aimer_msg.aimer_if_track;
             break;
         case ARMOR:
-            fs["armor_number"] >> this->armor_msg.armor_number;
-            fs["armor_distance"] >> this->armor_msg.armor_distance;
-            fs["shootable"] >> this->aimer_msg.aimer_shootable;
-            fs["if_track"] >> this->aimer_msg.aimer_if_track;
+            // fs["armor_number"] >> this->armor_msg.armor_number;
+            // fs["armor_distance"] >> this->armor_msg.armor_distance;
+            // fs["shootable"] >> this->aimer_msg.aimer_shootable;
+            // fs["if_track"] >> this->aimer_msg.aimer_if_track;
             RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-armor msg");
             break;
         case SHOOT:
@@ -46,7 +46,7 @@ namespace wmj
             RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-aimer msg");
             break;
         case NAV: 
-            fs["position"] >> this->navigation_msg.navigation_default_position;
+            // fs["position"] >> this->navigation_msg.navigation_default_position;
             fs["navigation_status"] >> this->navigation_msg.navigation_status;
             RCLCPP_INFO(rclcpp::get_logger("MSG INFO"), "Get default-navigation msg");
             break;
@@ -139,7 +139,7 @@ namespace wmj
         ports_list.insert(BT::OutputPort<double>("armor_distance"));
         ports_list.insert(BT::OutputPort<double>("armor_timestamp"));
 
-        ports_list.insert(BT::OutputPort<bool>("aimer_if_track"));
+        ports_list.insert(BT::OutputPort<int>("aimer_if_track"));
         ports_list.insert(BT::OutputPort<bool>("aimer_shootable"));
 
         ports_list.insert(BT::OutputPort<int>("outpost_blood"));
@@ -370,7 +370,7 @@ namespace wmj
     {
         BT::PortsList port_list;
         port_list.insert(BT::InputPort<int>("bullet_rate"));
-        port_list.insert(BT::InputPort<bool>("aimer_if_track"));
+        port_list.insert(BT::InputPort<int>("aimer_if_track"));
         port_list.insert(BT::InputPort<bool>("aimer_shootable"));
         return port_list;
     }
@@ -396,7 +396,7 @@ namespace wmj
     BT::NodeStatus Limit_Shoot_Node::tick()
     {
         auto bullet_rate = getInput<int>("bullet_rate");
-        auto aimer_if_track = getInput<bool>("aimer_if_track");
+        auto aimer_if_track = getInput<int>("aimer_if_track");
         auto aimer_shootable = getInput<bool>("aimer_shootable");
         // msg.bullet_rate = bullet_rate.value();
 
@@ -905,7 +905,7 @@ namespace wmj
     BT::PortsList Scan_Condition::providedPorts()
     {
         BT::PortsList port_lists;
-        port_lists.insert(BT::InputPort<bool>("aimer_if_track"));
+        port_lists.insert(BT::InputPort<int>("aimer_if_track"));
         port_lists.insert(BT::InputPort<int>("bullet_num"));
         return port_lists;
     }
@@ -918,10 +918,10 @@ namespace wmj
     */ 
     bool Scan_Condition::GetScanStatus()
     {
-        auto aimer_if_track = getInput<bool>("aimer_if_track").value();
+        auto aimer_if_track = getInput<int>("aimer_if_track").value();
         auto bullet_num = getInput<int>("bullet_num").value();
 
-        if( aimer_if_track && bullet_num > 0)
+        if( aimer_if_track == 1 && bullet_num > 0)
         {
             return false;
         }
@@ -1153,7 +1153,7 @@ namespace wmj
         port_lists.insert(BT::InputPort<int>("armor_number"));
         port_lists.insert(BT::InputPort<double>("armor_distance"));
         
-        port_lists.insert(BT::InputPort<bool>("aimer_if_track"));
+        port_lists.insert(BT::InputPort<int>("aimer_if_track"));
         port_lists.insert(BT::InputPort<bool>("aimer_shootable"));
 
         port_lists.insert(BT::InputPort<int>("sentry_blood"));
@@ -1205,7 +1205,7 @@ namespace wmj
         auto enemy_alive = getInput<int>("enemy_alive");
         auto default_position = getInput<int>("default_position");
         auto hityaw = getInput<double>("hityaw");
-        auto aimer_if_track = getInput<bool>("aimer_if_track");
+        auto aimer_if_track = getInput<int>("aimer_if_track");
         auto aimer_shootable = getInput<bool>("aimer_shootable");
         auto navigation_status = getInput<int>("navigation_status");
         
@@ -1225,12 +1225,6 @@ namespace wmj
         last_blood = sentry_blood.value();
 
         int m_position = 3;  // 默认导航前往视界位置
-
-        if( default_position.value() != -1)
-        {
-            m_position = default_position.value();
-        }
-
 
         if((time_left.value() < 160 && time_left.value() > 135))
         {   
@@ -1271,6 +1265,25 @@ namespace wmj
         }
 
         std::cout << "init_position:" << m_position << std::endl;
+
+        if( aimer_if_track.value() == -1 )           // 自瞄信息收不到后会将默认位置改为出发点
+        {
+            if( m_position == 3 )
+            {
+                m_position = 0;
+            }
+        }
+
+        if( time_left.value() < 60 )                      // 比赛最后一分钟返回出发点
+        {
+            m_position = 0; 
+        }
+
+        if( default_position.value() != -1)           // 比赛信息收不到，默认返回出发点
+        {
+            m_position = default_position.value();
+        }
+
         
         // 如果导航有目标位姿且导航节点认为自身未到达目标点，判断目标位置和当前位置的差距
         if( m_position != -1 && navigation_status.value() == 0 )           
@@ -1341,14 +1354,14 @@ namespace wmj
         // }
         int scan_mode = 0;
         int bullet_rate = -1;
-        if( aimer_if_track.value() == true)
+        if( aimer_if_track.value() == 1 )
         {
             m_position = -1;
             bullet_rate = 20;
             m_last_track = true;
             m_lost_detect_count = 0;
         }
-        else if(aimer_if_track.value() == false && m_last_track == true)
+        else if(aimer_if_track.value() == 0 && m_last_track == 1)
         {
             if( m_lost_detect_count < 30 )   // 90度扫7.5s
             {
@@ -1359,12 +1372,13 @@ namespace wmj
             }
             else
             {
-                m_last_track = false;
+                m_last_track = 0;
                 m_lost_detect_count = 0;
             }
         
         }
         
+        std::cout << "defend_total_blood:" << total_blood << std::endl;
         std::cout << "defend_armor_number:" << armor_number.value() << std::endl;
         std::cout << "defend_armor_distance:" << armor_distance.value() << std::endl;
         std::cout << "defend_bullet_rate:" << bullet_rate << std::endl;
